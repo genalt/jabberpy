@@ -456,7 +456,6 @@ class Stream:
 
     def disconnect(self):
         """Close the stream and socket"""
-        time.sleep(1) ## sleep for a second - server bug ? ##        
         self.write ( "</stream:stream>" )
         self._sock.close()
         self._sock = None
@@ -468,14 +467,14 @@ class Stream:
         pass
 
     def log(self, data, inout=''):
-        """Logs data to the specified filehandle. Data is time stamped
+        """Logs data to the specified filehandle. Data is time stamped 
         and prefixed with inout"""
         if self._logFH is not None:
-	    if self._timestampLog:
-		self._logFH.write("%s - %s - %s\n" %
-		(time.asctime(time.localtime(time.time())), inout, data ) )
-	    else:
-		self._logFH.write("%s - %s\n" % (inout, data ) )
+            if self._timestampLog:
+                self._logFH.write("%s - %s - %s\n" % (time.asctime(), inout, data))
+            else:
+                self._logFH.write("%s - %s\n" % (inout, data ) )
+            self._logFH.flush()
 
     def getIncomingID(self):
         """Returns the streams ID"""
