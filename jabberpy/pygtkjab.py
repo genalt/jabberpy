@@ -17,14 +17,195 @@ TAB_ROSTER  = 2
 TAB_PRESENCE = 3
 TAB_DEBUG = 4
 
+TRUE = 1
+FALSE = 0
 
-class Tab: ### Make bigger and Better !!!
-    def __init__(self, type=TAB_MESSAGE):
-        self._type = type 
+class Tab:
+    def __init__(self, gui, title):
+        self._type = type
+        self._notebook = gui.notebook
+        self._title = title
+        self._id = None
+        self._box = gtk.GtkVBox()
+        self._main_callback = None
+        self._cb = None
+
+        self.cmap = gui.get_colormap()
+        self.cols={}
+        self.cols['blue']  = self.cmap.alloc('blue')
+        self.cols['red']   = self.cmap.alloc('red')
+        self.cols['black']   = self.cmap.alloc('black')
+
+
+    def getID(self): return self._id;
+    def setID(self,val): self._id = val;
+
+    def recieve(self,obj): pass
+    def setCallBack(self,cb): self._cb = cb
+    def getData(self): pass
+    def setData(self,val): pass
+
+    def _addToNoteBook(self):
+        self._tab_event = gtk.GtkEventBox()
+        self._tab_event.connect("clicked", self.tabClicked )
+        self._tab_label = gtk.GtkLabel(self._title)
+        self._tab_label.show()
+        self._tab_event.add(self._tab_label)
+        self._notebook.append_page(self._box,self._tab_event)
+
+    def tabClicked(self, *args):
+        print "got it"
+        return gtk.FALSE
+
+    def highlight(self):
+        try:
+            l = self.tabs[tab_no].tab_label
+        except:
+            return
+
+        my_style = l.get_style();
+        my_style.fg[gtk.STATE_NORMAL] = self.cols['blue'] 
+        l.set_style(my_style)
+
+    def lowlight(self):
+        try:
+            this_tab = self.tabs[tab_no].tab_label
+        except:
+            return
+
+        my_style = this_tab.tab_label.get_style();
+        my_style.fg[gtk.STATE_NORMAL] = self.cols['black'] 
+        this_tab.tab_label.set_style(my_style)
+
+    def removeTab(self,*args):
+        tab_no = self.notebook.get_current_page()
+        self.notebook.remove_page(tab_no)
+        del(self.tabs[tab_no])
+
+        
+
+class Chat_Tab(Tab): ### Make bigger and Better !!!
+    def __init__(self, gui, jid):
+        Tab.__init__(self, gui, jid.getBasic())
+
+        self._id = str(jid)
+        self._kill_button = gtk.GtkButton('X')
+        self._box.pack_start(self._kill_button,
+                             fill=gtk.FALSE, expand=gtk.FALSE)
+        ## this_tab.kill_button.connect('clicked', self.removeTab) ??? ##
+        
+        self._scroll = gtk.GtkScrolledWindow()
+        self._txt = gtk.GtkText()
+        self._txt.set_word_wrap( gtk.TRUE )
+        self._scroll.add(self._txt)
+        self._scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        self._box.pack_start(self._scroll, fill=gtk.TRUE, expand=gtk.TRUE)
+
+        self._hbox = gtk.GtkHBox()
+        self._entry = gtk.GtkEntry()
+        self._hbox.pack_start(self._entry, fill=gtk.TRUE, expand=gtk.TRUE)
+        self._send_button = gtk.GtkButton('send')
+        self._send_button.connect('clicked', self._cb, self)
+        self._hbox.pack_end(self._send_button, fill=gtk.FALSE, expand=gtk.FALSE)
+        self._box.pack_end(self._hbox, fill=gtk.TRUE, expand=gtk.FALSE)
+
+        self._box.show_all()
+        self._addToNoteBook()
+        self._entry.grab_focus()
+
+        ## this_tab.event_connected = 0 ??
+
+    def recieve(self,obj):
+        if str(obj.__class__) != 'Jabber.Message': return FALSE
+        if obj.getFrom().getBasic() == self._title:
+            self._txt.insert(None,self.cols['red'], None,
+                             "<%s> " % obj.getFrom().getBasic())
+            self._txt.insert(None,None, None, "%s\n" % obj.getBody())
+            return TRUE
+        return FALSE
+    
+    def getData(self):
+        txt = self._entry.get_text() 
+        self._entry.set_text('')
+        self._txt.insert(None,None,None, "<%s> %s\n" % ( self._id, txt) )
+        return txt
+
+
+class Roster_Tab(Tab): ### Make bigger and Better !!!
+    def __init__(self, gui, title, roster):
+        Tab.__init__(self, gui, title)
+        self._roster_selected = None
+        self._rows = []
+
+        self._scroll = gtk.GtkScrolledWindow()
+
+        self._clist = gtk.GtkCList(2)
+        self._clist.column_titles_show()
+        self._clist.set_column_title(0,'Jid')
+        self._clist.set_column_title(1,'Status')
+        self._clist.set_column_width(0,200);
+
+        self._clist.row_is_visible(gtk.TRUE)
+        
+        self._clist.connect("select_row" , self.rosterSelectCB)
+
+        for item in roster:
+            self._clist.append( [ str(item['jid']), str(item['status']) ] )
+            self._rows.append( { 'jid':str(item['jid']) ,
+                                 'status':str(item['status']) } )
+            
+        self._scroll.add(self._clist)
+        self._scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        self._box.pack_start(self._scroll, fill=gtk.TRUE, expand=gtk.TRUE)
+
+        self._hbox = gtk.GtkHBox()
+        self._button = gtk.GtkButton('chat')
+        self._hbox.pack_start(self._button, fill=gtk.FALSE, expand=gtk.FALSE)
+        self._box.pack_end(self._hbox, fill=gtk.TRUE, expand=gtk.FALSE)
+
+        self._box.show_all()
+        self._addToNoteBook()
+    
         # just a holder for now
+    def rosterSelectCB(self, *args):
+        self._roster_selected = int(args[1])
+
+    def get_roster_selection(self):
+        return self._rows[self._roster_selected]['jid']
+
+    def recieve(self,obj):
+        if str(obj.__class__) != 'Jabber.Presence': return FALSE
+        print "recieved presence"
+        for row in self._rows:
+            print "cjecking ", Jabber.JID(row['jid']).getBasic() ,obj.getFrom().getBasic()
+            if Jabber.JID(row['jid']).getBasic() == obj.getFrom().getBasic():
+                print "updating"
+                type = obj.getType()
+                if type == None: type = 'available'
+
+                if type == 'available':
+                    row['status'] = 'online'
+                elif type == 'unavailable':
+                    row['status'] = 'offline'
+                self.repaint()
+                return TRUE
+        return FALSE
+
+    def repaint(self):
+        self._clist.clear()
+        for row in self._rows:
+            self._clist.append( [ str(row['jid']), str(row['status']) ] )
+
+    def update_roster_tab(self,roster):
+        clist = self.tabs[0].clist
+        clist.clear()
+        for item in roster:
+            clist.append( [ str(item['jid']), str(item['status']) ] )
+
 
 class mainWindow(gtk.GtkWindow):         # Usual Base
-    def __init__(self, title='pygtk app', width=None, height=None):
+    def __init__(self, title='pygtk app', roster=None,
+                 width=None, height=None):
         gtk.GtkWindow.__init__(self)
         self.set_title(title)
         if width is None:
@@ -35,15 +216,11 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
                 width = 240
                 height = 300
 
-        self.tabs = []
+        self._tabs = []
         self.cols = {};
 
         self.roster_selected = None
 
-        self.cmap = self.get_colormap()
-        self.cols['blue']  = self.cmap.alloc('blue')
-        self.cols['red']   = self.cmap.alloc('red')
-        self.cols['black']   = self.cmap.alloc('black')
         
         self.set_usize(width,height)
         self.connect("delete_event", self.quit)
@@ -51,186 +228,48 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.box = gtk.GtkVBox()
         self.add(self.box)
         self.box.show()
-        self.init_menu()        
+        #self.init_menu()        
 
         self.notebook = gtk.GtkNotebook()
         self.notebook.set_tab_pos (gtk.POS_BOTTOM);
         self.notebook.set_scrollable( gtk.TRUE ) 
 
-
         self.box.pack_end(self.notebook, fill=gtk.TRUE, expand=gtk.TRUE)
+
+        self._tabs.append( Roster_Tab(self, 'roster', roster) )
 
         self.notebook.show()
         self.show()
 
-    def addRosterTab(self,roster):
-        print roster
-        self.tabs.append(Tab(TAB_ROSTER))
-        this_tab = self.tabs[-1]
-        this_tab.jid = 'roster'
+    def getTabs(self):
+        return self._tabs
 
-        this_tab.box = gtk.GtkVBox()
-        this_tab.scroll = gtk.GtkScrolledWindow()
+    def getTab(self,val):
+        return self._tabs[val]
 
-        this_tab.clist = gtk.GtkCList(2)
-        this_tab.clist.column_titles_show()
-        this_tab.clist.set_column_title(0,'Jid')
-        this_tab.clist.set_column_title(1,'Status')
-        this_tab.clist.set_column_width(0,200);
-
-        this_tab.clist.row_is_visible(gtk.TRUE)
-        
-        this_tab.clist.connect("select_row" , self.rosterSelectCB)
-
-        this_tab.roster_tree = gtk.GtkCTree( 1, 0 )
-        for item in roster:
-            this_tab.clist.append( [ str(item['jid']), str(item['status']) ] )
-
-        this_tab.scroll.add(this_tab.clist)
-        this_tab.scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-        this_tab.box.pack_start(this_tab.scroll, fill=gtk.TRUE, expand=gtk.TRUE)
-
-        this_tab.hbox = gtk.GtkHBox()
-        #this_tab.entry = gtk.GtkEntry()
-        #this_tab.hbox.pack_start(this_tab.entry, fill=gtk.TRUE, expand=gtk.TRUE)
-        this_tab.button = gtk.GtkButton('chat')
-        this_tab.hbox.pack_start(this_tab.button, fill=gtk.FALSE, expand=gtk.FALSE)
-        this_tab.box.pack_end(this_tab.hbox, fill=gtk.TRUE, expand=gtk.FALSE)
-
-        self.notebook.append_page(this_tab.box,gtk.GtkLabel('roster'))
-        self.notebook.show_all()
-
-    def rosterSelectCB(self, *args):
-        self.roster_selected = int(args[1])
-
-    def highlight_tab(self,tab_no):
-        try:
-            l = self.tabs[tab_no].tab_label
-        except:
-            return
-
-        my_style = l.get_style();
-        my_style.fg[gtk.STATE_NORMAL] = self.cols['blue'] 
-        l.set_style(my_style)
-
-    def lowlight_tab(self,tab_no):
-        try:
-            this_tab = self.tabs[tab_no].tab_label
-        except:
-            return
-
-        my_style = this_tab.tab_label.get_style();
-        my_style.fg[gtk.STATE_NORMAL] = self.cols['black'] 
-        this_tab.tab_label.set_style(my_style)
-
-        
-    def update_roster_tab(self,roster):
-        clist = self.tabs[0].clist
-        clist.clear()
-        for item in roster:
-            clist.append( [ str(item['jid']), str(item['status']) ] )
-
-    def addChatTab(self,jid): ## can pass callback function in
-        self.tabs.append(Tab(TAB_MESSAGE))
-
-#        my_style = self.rc_get_style();
-#        my_style.fg[gtk.STATE_NORMAL] = self.cols['blue'] 
+    def addTab(self,tab_obj):
+        self._tabs.append( tab_obj )
+        return tab_obj
+#    def displayMessage(self,jid,body):
+#        tab_no = self.findTab(jid)
+#        if tab_no is None: # do we have a window
+#            self.addChatTab(jid)
+#            print "DEBUG -> ", len(self.tabs) 
+#            self.notebook.set_page( len(self.tabs)  )
+#            tab_no = len(self.tabs)-1
 #
-
-        this_tab = self.tabs[-1]
-        this_tab.jid = jid
-        this_tab.box = gtk.GtkVBox()
-        this_tab.kill_button = gtk.GtkButton('X')
-        this_tab.box.pack_start(this_tab.kill_button, fill=gtk.FALSE, expand=gtk.FALSE)
-        this_tab.kill_button.connect('clicked', self.removeTab)
-        
-        this_tab.scroll = gtk.GtkScrolledWindow()
-        this_tab.txt = gtk.GtkText()
-        this_tab.txt.set_word_wrap( gtk.TRUE )
-        this_tab.scroll.add(this_tab.txt)
-        this_tab.scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-        this_tab.box.pack_start(this_tab.scroll, fill=gtk.TRUE, expand=gtk.TRUE)
-
-        this_tab.hbox = gtk.GtkHBox()
-        this_tab.entry = gtk.GtkEntry()
-        this_tab.hbox.pack_start(this_tab.entry, fill=gtk.TRUE, expand=gtk.TRUE)
-        this_tab.button = gtk.GtkButton('send')
-        this_tab.hbox.pack_end(this_tab.button, fill=gtk.FALSE, expand=gtk.FALSE)
-        this_tab.box.pack_end(this_tab.hbox, fill=gtk.TRUE, expand=gtk.FALSE)
-
-        this_tab.tab_label = gtk.GtkLabel(jid)
-
-        self.notebook.append_page(this_tab.box,this_tab.tab_label)
-        self.notebook.show_all()
-        
-        this_tab.entry.grab_focus()
-        this_tab.event_connected = 0
-
-    def addDebugTab(self): ## can pass callback function in
-        self.tabs.append(Tab(TAB_DEBUG))
-
-        this_tab = self.tabs[-1]
-        this_tab.jid = 'DEBUG'
-        this_tab.box = gtk.GtkVBox()
-        this_tab.scroll = gtk.GtkScrolledWindow()
-        this_tab.txt = gtk.GtkText()
-        this_tab.txt.set_word_wrap( gtk.TRUE )
-        this_tab.scroll.add(this_tab.txt)
-        this_tab.scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-        this_tab.box.pack_start(this_tab.scroll, fill=gtk.TRUE, expand=gtk.TRUE)
-
-        self.notebook.append_page(this_tab.box,gtk.GtkLabel('log'))
-        self.notebook.show_all()
-
-    def removeTab(self,*args):
-        tab_no = self.notebook.get_current_page()
-        self.notebook.remove_page(tab_no)
-        del(self.tabs[tab_no])
-
-    def addPresenceTab(self,jid,txt):
-        self.tabs.append(Tab(TAB_PRESENCE))
-        this_tab = self.tabs[-1]
-        this_tab.jid = jid
-
-        this_tab.box = gtk.GtkVBox()
-        this_tab.label = gtk.GtkLabel(txt)
-        this_tab.box.pack_start(this_tab.label, fill=gtk.FALSE, expand=gtk.FALSE)
-
-        this_tab.hbox = gtk.GtkHBox()
-        this_tab.no_button = gtk.GtkButton('no')
-        this_tab.hbox.pack_start(this_tab.no_button, fill=gtk.FALSE, expand=gtk.TRUE)
-        this_tab.no_button.connect('clicked', self.removeTab)
-        this_tab.yes_button = gtk.GtkButton('yes')
-        this_tab.hbox.pack_end(this_tab.yes_button, fill=gtk.FALSE, expand=gtk.FALSE)
-        this_tab.box.pack_end(this_tab.hbox, fill=gtk.TRUE, expand=gtk.FALSE)
-        
-        self.notebook.append_page(this_tab.box,gtk.GtkLabel(jid))
-        self.notebook.show_all()
-
-        return len(self.tabs)-1
-        
-    def displayMessage(self,jid,body):
-        tab_no = self.findTab(jid)
-        if tab_no is None: # do we have a window
-            self.addChatTab(jid)
-            print "DEBUG -> ", len(self.tabs) 
-            self.notebook.set_page( len(self.tabs)  )
-            tab_no = len(self.tabs)-1
-
-        self.tabs[tab_no].txt.insert(None,self.cols['red'], None, "<%s> " % jid)
-        self.tabs[tab_no].txt.insert(None,None, None, "%s\n" % body)
-        return tab_no
-        
-    def findTab(self,jid,type=TAB_MESSAGE):
-        i = 0
-        for t in self.tabs:
-            if t.jid == jid and t._type == type: return i
-            i = i + 1
-        return None
-    
-    def init_menu(self):
-        pass
-    
+#        self.tabs[tab_no].txt.insert(None,self.cols['red'], None, "<%s> " % jid)
+#        self.tabs[tab_no].txt.insert(None,None, None, "%s\n" % body)
+#        return tab_no
+#        
+#    def findTab(self,jid,type=TAB_MESSAGE):
+#        i = 0
+#        for t in self.tabs:
+#            if t.jid == jid and t._type == type: return i
+#            i = i + 1
+#        return None
+#    
+#    
     def quit(self, *args):
         print "got exit ?"
         gtk.mainquit()
@@ -238,8 +277,8 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
 
 class JabberClient(Jabber.Connection):
     def __init__(self,server,username,password,resource):
-        self.mainwin = mainWindow("jabber app")
-
+        
+        print "connecting"
         Jabber.Connection.__init__(self,host=server,log='Dummy')
         try:
             self.connect()
@@ -248,13 +287,14 @@ class JabberClient(Jabber.Connection):
             sys.exit(0)
         else:
             print "Connected"
-            
+        print "logging in"
         if self.auth(username,password,resource):
             print "Logged in as %s to server %s" % ( username, server )
         else:
             print "eek -> ", con.lastErr, con.lastErrCode
             sys.exit(1)
 
+        print "requesting roster"
         ## Build the roster Tab ##
         self.roster = []
         r = self.requestRoster()
@@ -264,90 +304,90 @@ class JabberClient(Jabber.Connection):
             else:
                 status = 'pending'
             self.roster.append( { 'jid':jid, 'status': status } )
-        self.mainwin.addRosterTab(self.roster)
-        self.mainwin.addDebugTab()
+
+        self.gui = mainWindow("jabber app",roster=self.roster)
+
+        ##self.mainwin.addRosterTab(Roster_Tab,self.roster)
+        ##self.mainwin.addDebugTab()
         
         self.sendInitPresence()                                  
-        self.JID = username + "@" + server 
+        ##self.JID = username + "@" + server 
+        self.gui.getTab(0)._button.connect('clicked', self.addChatTabViaRoster )
+        ##self.mainwin.tabs[0].button.connect('clicked', self.newMessageTab)
 
-        self.mainwin.tabs[0].button.connect('clicked', self.newMessageTab)
+    def dispatch_to_gui(self,obj):
+        recieved = FALSE
+        for t in self.gui.getTabs():
+            if t.recieve(obj): recieved = TRUE
+        return recieved
 
-    def  updateRoster(self, jid, status):
-        if string.find(jid, '/') != -1:
-            jid = string.split(jid,'/')[0]
-        for item in self.roster:
-            if item['jid'] == jid: item['status'] = status
-        self.mainwin.update_roster_tab(self.roster)
+##    def  updateRoster(self, jid, status):
+##        if string.find(jid, '/') != -1:
+##            jid = string.split(jid,'/')[0]
+##        for item in self.roster:
+##            if item['jid'] == jid: item['status'] = status
+##        self.mainwin.update_roster_tab(self.roster)
+##
+##    def newMessageTab(self, *args):
+##        if self.mainwin.roster_selected != None:
+##            jid = self.roster[self.mainwin.roster_selected]['jid']
+##            self.mainwin.addChatTab(jid)
+##            self.mainwin.tabs[self.mainwin.findTab(jid)].button.connect('clicked', self.messageSend )
+##            self.mainwin.tabs[self.mainwin.findTab(jid)].entry.connect('activate', self.messageSend )
+##            
+##    def messageSend(self, *args):
+##        print args
+##        ## find out what tab is focused ##
+##        tab_no = self.mainwin.notebook.get_current_page()
+##        ## build the message for the inputted text ##
+##        msg = Jabber.Message(self.mainwin.tabs[tab_no].jid,
+##                             self.mainwin.tabs[tab_no].entry.get_text() )
+##        msg.setType('chat')
+##        ## send it ##
+##        self.send(msg)
+##        ## clear the tabs input field ##
+##        self.mainwin.tabs[tab_no].entry.set_text('')
+##        ## show the sent text it the tabs text area ##
+##        self.mainwin.tabs[tab_no].txt.insert(None,None,None, "<%s> %s\n" % ( self.JID, msg.getBody()) )
+##
+    def addChatTabViaRoster(self, *args):
+        jid_raw = self.gui.getTab(0).get_roster_selection()
+        if jid_raw:
+            print jid_raw
+            jid = Jabber.JID(jid_raw)
+            self.gui.addTab( Chat_Tab(self.gui, jid) )
+            self.gui.getTab(-1)._send_button.connect('clicked',
+                                                     self.messageSend,
+                                                     self.gui.getTab(-1) )
 
-    def newMessageTab(self, *args):
-        if self.mainwin.roster_selected != None:
-            jid = self.roster[self.mainwin.roster_selected]['jid']
-            self.mainwin.addChatTab(jid)
-            self.mainwin.tabs[self.mainwin.findTab(jid)].button.connect('clicked', self.messageSend )
-            self.mainwin.tabs[self.mainwin.findTab(jid)].entry.connect('activate', self.messageSend )
-            
     def messageSend(self, *args):
-        print args
-        ## find out what tab is focused ##
-        tab_no = self.mainwin.notebook.get_current_page()
-        ## build the message for the inputted text ##
-        msg = Jabber.Message(self.mainwin.tabs[tab_no].jid,
-                             self.mainwin.tabs[tab_no].entry.get_text() )
-        msg.setType('chat')
-        ## send it ##
-        self.send(msg)
-        ## clear the tabs input field ##
-        self.mainwin.tabs[tab_no].entry.set_text('')
-        ## show the sent text it the tabs text area ##
-        self.mainwin.tabs[tab_no].txt.insert(None,None,None, "<%s> %s\n" % ( self.JID, msg.getBody()) )
+        tab = args[-1]
+        msg = tab.getData()
+        msg_obj = Jabber.Message(tab._id, msg)
+        msg_obj.setType('chat')
+        self.send(msg_obj)
 
 
     def messageHandler(self, msg_obj):
-        jid = msg_obj.getFrom().getBasic();
-        body = msg_obj.getBody()
-        tab_no = self.mainwin.displayMessage(jid, body)
-        if not self.mainwin.tabs[tab_no].event_connected:
-            self.mainwin.tabs[tab_no].button.connect('clicked', self.messageSend )
-            self.mainwin.tabs[tab_no].entry.connect('activate', self.messageSend )
-            self.mainwin.tabs[tab_no].event_connected = 1
-        if tab_no != self.mainwin.notebook.get_current_page():
-            self.mainwin.highlight_tab(tab_no)
-            
-    def presenceHandler(self, prs):
-        who = str(prs.getFrom())
-        type = prs.getType()
-        if type == None: type = 'available'
+        print msg_obj
+        if not self.dispatch_to_gui(msg_obj):
+            self.gui.addTab(
+                Chat_Tab(self.gui, msg_obj.getFrom())
+                ).recieve(msg_obj)
+            self.gui._tabs[-1]._send_button.connect('clicked',
+                                                    self.messageSend,
+                                                    self.gui._tabs[-1] )
 
-        if type == 'available':
-            self.updateRoster(who,'online')
-        elif type == 'unavailable':
-            self.updateRoster(who,'offline')
+                
+    def presenceHandler(self, prs_obj):
+        print "got presence 1"
+        self.dispatch_to_gui(prs_obj)
 
-        if type == 'subscribe':
-            tab_no = self.mainwin.addPresenceTab(who,
-                   "%s has requested a subscription to your presence.\n\n Do you wish to add them?")
-            self.mainwin.tabs[tab_no].yes_button.connect('clicked', self.presenceSubscribe) 
-
-
+    
     def process(self,time=0.1):
         while gtk.events_pending(): gtk.mainiteration()
         Jabber.Connection.process(self,time)
     
-    def presenceSubscribe(self,*args):
-        tab_no = self.mainwin.notebook.get_current_page()
-        jid = self.mainwin.tabs[tab_no].jid
-        print "DEBUG: sending to " + jid
-        p = Jabber.Presence(to=jid, type='subscribed');
-        self.send(p)
-        print p
-        ##self.send(Jabber.Presence(to=jid, type='subscribe'))
-        self.mainwin.removeTab()
-    
-    def log(self, data, inout):
-        tab_no = self.mainwin.findTab('DEBUG',TAB_DEBUG)
-        print "LOG CALLED -> %s" % tab_no
-        if tab_no:
-            self.mainwin.tabs[tab_no].txt.insert(None,None,None, "%s %s\n" % ( inout, data) )
 
 def main():
     server   = sys.argv[1]
@@ -359,6 +399,15 @@ def main():
     
 if __name__ == "__main__":
     main()  
+
+
+
+
+
+
+
+
+
 
 
 
