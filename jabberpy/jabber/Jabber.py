@@ -20,6 +20,7 @@ class Connection(XMLStream.Client):
         self._reg_agent = ''
 
         self._id = 0;
+        self._expected = {}
         
         self.lastErr = ''
         self.lastErrCode = 0
@@ -28,7 +29,7 @@ class Connection(XMLStream.Client):
 
     def getAnID(self):
         self._id = self._id + 1
-        return self._id
+        return str(self._id)
     
 
     def dispatch(self, root_node ):
@@ -62,62 +63,69 @@ class Connection(XMLStream.Client):
             #
             # TODO: change all below code to use node methods
             #
-            for n in root_node.kids:
-                if n.name == 'query':
+            queryNS = iq_obj.getQuery()
+            if queryNS and root_node.attrs['type'] == 'result':
                     ## Build roster ###
-                    if n.namespace == 'jabber:iq:roster' \
-                       and root_node.attrs['type'] == 'result':
-                        self._roster = {}
-                        for item in n.kids:
-                            jid = None
-                            name = None
-                            sub = None
-                            ask = None
-                            if item.attrs.has_key('jid'):
-                                jid = item.attrs['jid']
-                            if item.attrs.has_key('name'):
-                                name = item.attrs['name']
-                            if item.attrs.has_key('subscription'):
-                                sub = item.attrs['subscription']
-                            if item.attrs.has_key('ask'):
-                                ask = item.attrs['ask']
-                            if jid:
-                                self._roster[jid] = \
-                                { 'name': name, 'ask': ask, 'subscription': sub }
-                            else:
-                                self.DEBUG("roster - jid not defined ?")
-                        self.DEBUG("roster => %s" % self._roster)
-                        
-                    elif n.namespace == 'jabber:iq:register':
-                        if root_node.attrs['type'] == 'result':
-                            self._reg_info = {}
-                            for item in n.kids:
-                                data = None
-                                if item.data: data = item.data
-                                self._reg_info[item.name] = data
+                if queryNS == 'jabber:iq:roster': 
+                    self._roster = {}
+                    for item in iq_obj.getQueryNode().kids:
+                        jid = None
+                        name = None
+                        sub = None
+                        ask = None
+                        if item.attrs.has_key('jid'):
+                            jid = item.attrs['jid']
+                        if item.attrs.has_key('name'):
+                            name = item.attrs['name']
+                        if item.attrs.has_key('subscription'):
+                            sub = item.attrs['subscription']
+                        if item.attrs.has_key('ask'):
+                            ask = item.attrs['ask']
+                        if jid:
+                            self._roster[jid] = \
+                            { 'name': name, 'ask': ask, 'subscription': sub }
                         else:
-                            self.DEBUG("print type is %s" % root_node.attrs['type'])
-
-                    elif n.namespace == 'jabber:iq:agents':
-                        if root_node.attrs['type'] == 'result':
-                            self.DEBUG("got agents result")
-                            self._agents = {}
-                            for agent in n.kids:
-                                if agent.name == 'agent': ## hmmm
-                                    self._agents[agent.attrs['jid']] = {}
-                                    for info in agent.kids:
-                                        data = None
-                                        if info.data: data = info.data
-                                        self._agents[agent.attrs['jid']][info.name] = data
-                    else:
-                        pass
+                            self.DEBUG("roster - jid not defined ?")
+                    self.DEBUG("roster => %s" % self._roster)
+                        
+                elif queryNS == 'jabber:iq:register':
+                        self._reg_info = {}
+                        for item in iq_obj.getQueryNode().kids:
+                            data = None
+                            if item.data: data = item.data
+                            self._reg_info[item.name] = data
+                    
+                elif queryNS == 'jabber:iq:agents':
+                        self.DEBUG("got agents result")
+                        self._agents = {}
+                        for agent in iq_obj.getQueryNode().kids:
+                            if agent.name == 'agent': ## hmmm
+                                self._agents[agent.attrs['jid']] = {}
+                                for info in agent.kids:
+                                    data = None
+                                    if info.data: data = info.data
+                                self._agents[agent.attrs['jid']][info.name] = data
+                else:
+                    pass
                     
             self.iqHandler(iq_obj)
             
         else:
             self.DEBUG("whats a tag -> " + root_node.name)
 
-    
+        if root_node.getAttr('id'):
+            self._expected[root_node.getAttr('id')] = root_node
+            
+
+
+    def waitForResponse(self, ID):
+        while not self._expected.has_key(ID):
+            print "waiting on %s" % str(ID)
+            self.process(0)
+        response = self._expected[ID]
+        del self._expected[ID]
+        return response ## needed ?
+
     def auth(self,username,passwd,resource):
         str =  u"<iq type='set'>                    \
                 <query xmlns='jabber:iq:auth'><username>%s</username><password>%s</password> \
@@ -129,22 +137,36 @@ class Connection(XMLStream.Client):
             return False
 
     def requestRoster(self):
-        self.send(u"<iq type='get'><query xmlns='jabber:iq:roster'/></iq>")
+        id = self.getAnID()
+        rost_iq = Iq(type='get')
+        rost_iq.setQuery('jabber:iq:roster')
+        rost_iq.setID(id)
+        self.send(rost_iq)
         self._roster = {}
-        while (not self._roster): self.process(0)
+        self.waitForResponse(id)
+        self.DEBUG("got roster response")
+        self.DEBUG("roster -> %s" % str(self._agents))
+        return self._roster
         
     def requestRegInfo(self,agent=''):
         if agent: agent = agent + '.'
-        self.send(u"<iq type='get' to='%s%s'><query xmlns='jabber:iq:register'/></iq>" % ( agent ,self._host ))
-        while (not self._reg_info): self.process(0)
+        id = self.getAnID()
+        reg_iq = Iq(type='get', to = agent + self._host)
+        reg_iq.setQuery('jabber:iq:register')
+        reg_iq.setID(id)
+        self.send(reg_iq)
+        self._reg_info = {}
+        self.waitForResponse(id)
+        self.DEBUG("got reg response")
+        self.DEBUG("roster -> %s" % str(self._agents))
         
     def send(self, what):
-         self.DEBUG("type is %s " % type(what))
-         if type(what) is type("") or type(what) is type(u""): ## Is it a string ?
-             XMLStream.Client.write(self,what)
-         else:       ## better add if isinstance(what, protocol_superclass) ..?
-             XMLStream.Client.write(self,what.__str__())
-
+         XMLStream.Client.write(self,str(what))
+##         if type(what) is type("") or type(what) is type(u""): ## Is it a string ?
+##             XMLStream.Client.write(self,what)
+##         else:       ## better add if isinstance(what, protocol_superclass) ..?
+##             XMLStream.Client.write(self,str(what))
+##
     def sendInitPresence(self):
         self.send("<presence/>");
 
@@ -171,21 +193,25 @@ class Connection(XMLStream.Client):
 
     def sendRegInfo(self, agent=''):
         if agent: agent = agent + '.'
-        str =u'<iq type="set" to="' + agent + self._host + '"> \
-               <query xmlns="jabber:iq:register">'
+        iq_reg = Iq(to = agent + self._host, type='set')
+        q = iq_reg.setQuery('jabber:iq:register')
+        print q
         for info in self._reg_info.keys():
-            str = str + u"<%s>%s</%s>" % ( info, self._reg_info[info], info )
-        str = str + u"</query></iq>"
-        self.send(str)
+            q.insertTag(info).putData(self._reg_info[info])
+        self.send(iq_reg)
+        ## TODO: wait on an ID here
 
     def requestAgents(self):
+        id = self.getAnID()
         agents_iq = Iq(type='get')
-        agents_iq.setQueryNS('jabber:iq:agents')
+        agents_iq.setQuery('jabber:iq:agents')
+        agents_iq.setID(id)
         self.send(agents_iq)
         self._agents = {}
-        while (not self._agents): self.process(0)
+        self.waitForResponse(id)
+        self.DEBUG("got agents response")
+        self.DEBUG("agents -> %s" % str(self._agents))
         return self._agents
-
 
     def messageHandler(self, msg_obj): ## Overide If You Want ##
         if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
@@ -343,6 +369,7 @@ class Presence(Protocol):
         else:
             self._node.insertTag('priority').putData(val)
 
+
 class Iq(Protocol): 
     def __init__(self, to='', type=None, node=None):
         if node:
@@ -359,15 +386,24 @@ class Iq(Protocol):
         except: return None
 
     def setQuery(self,namespace):   
-        q= self._node.getTag('query')
+        q = self._node.getTag('query')
         if q:
             q.namespace = namespace
         else:
-            self._node.insertTag('query').setNamespace(namespace)
-
+            q = self._node.insertTag('query')
+            q.setNamespace(namespace)
+        return q
+        
     def getQueryNode(self):
         try: return self._node.getTag('query')
         except: return None
+
+    def setQueryNode(self):
+        q = self._node.getTag('query')
+        if q:
+            q.putData(val)
+        else:
+            self._node.insertTag('query').putData(val)
 
 
 

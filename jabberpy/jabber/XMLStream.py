@@ -53,13 +53,21 @@ class XMLStreamNode:
         self.attrs[key] = val
 
     def getAttr(self, key):
-        return self.attrs[key]
-
+        try: return self.attrs[key]
+        except: return None
+        
     def putData(self, data):
         self.data = data
 
     def getData(self):
         return self.data
+
+    def getNamespace(self):
+        return self.namespace
+
+    def setNamespace(self, namespace):
+        self.namespace = namespace
+
 
     def insertTag(self, name):
         newnode = XMLStreamNode(tag=name, attrs={}, parent=self)
@@ -70,15 +78,18 @@ class XMLStreamNode:
         return self._xmlnode2str()
 
     def _xmlnode2str(self):
-        str = "<" + self.name   # should I call get_name() ?
-        for a in self.attrs.keys():
-            str = str + " " + a + "='" + self.attrs[a] + "'"
-        str = str + ">" + self.data
+        s = "<" + self.name   # should I call get_name() ?
+        if self.namespace:
+            s = s + " xmlns = '%s' " % self.namespace
+        for key in self.attrs.keys():
+            val = str(self.attrs[key])
+            s = s + " %s='%s'" % ( key, val )
+        s = s + ">" + self.data
         if self.kids != None:
             for a in self.kids:
-                str = str + a._xmlnode2str()
-        str = str + "</" + self.name + ">"
-        return str
+                s = s + a._xmlnode2str()
+        s = s + "</" + self.name + ">"
+        return s
 
     def getTag(self, name):
         for node in self.kids:
@@ -132,7 +143,7 @@ class Client:
         
     def unknown_starttag(self, tag, attrs):
         self.__depth = self.__depth + 1
-        self.DEBUG("DEPTH -> %i , tag -> %s" % (self.__depth, tag) )
+        self.DEBUG("DEPTH -> %i , tag -> %s, attrs -> %s" % (self.__depth, tag, str(attrs)) )
         if self.__depth == 2:
             self._mini_dom = XMLStreamNode(tag,attrs)
             self._ptr = self._mini_dom
