@@ -32,13 +32,12 @@ case.
 
 import time, sys, re, socket
 from select import select
-from string import split,find,replace,join
 from base64 import encodestring
 import xml.parsers.expat
 import debug
 _debug=debug
 
-VERSION = "0.4+"
+VERSION = "0.5-pre2+"
 
 False = 0
 True  = 1
@@ -62,16 +61,16 @@ DBG_XML = [ DBG_XML_PARSE, DBG_XML_RAW ] # sample multiflag
 
 def XMLescape(txt):
     "Escape XML entities"
-    txt = replace(txt, "&", "&amp;")
-    txt = replace(txt, "<", "&lt;")
-    txt = replace(txt, ">", "&gt;")
+    txt = txt.replace("&", "&amp;")
+    txt = txt.replace("<", "&lt;")
+    txt = txt.replace(">", "&gt;")
     return txt
 
 def XMLunescape(txt):
     "Unescape XML entities"
-    txt = replace(txt, "&gt;", ">")
-    txt = replace(txt, "&lt;", "<")
-    txt = replace(txt, "&amp;", "&")
+    txt = txt.replace("&gt;", ">")
+    txt = txt.replace("&lt;", "<")
+    txt = txt.replace("&amp;", "&")
     return txt
 
 class error:
@@ -82,7 +81,7 @@ class error:
     
 class Node:
     """A simple XML DOM like class"""
-    def __init__(self, tag=None, parent=None, attrs=None, payload=None, node=None):
+    def __init__(self, tag=None, parent=None, attrs=None, payload=[], node=None):
         if node:
             if type(node)<>type(self): node=NodeBuilder(node).getDom()
             self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = \
@@ -100,12 +99,10 @@ class Node:
             for attr in attrs.keys():
                 self.attrs[attr]=attrs[attr]
 
-        if payload:
-            if type(payload) not in (type([]),type(1,)): payload=[payload]
-            for i in payload:
-                if type(i)==type(self): self.insertNode(i)
-                else: self.insertXML(i)
-#                self.insertNode(Node(node=i))	# Alternative way. Needs perfomance testing.
+        for i in payload:
+            if type(i)==type(self): self.insertNode(i)
+            else: self.insertXML(i)
+#            self.insertNode(Node(node=i))	# Alternative way. Needs perfomance testing.
 
     def setParent(self, node):
         "Set the nodes parent node."
@@ -142,7 +139,7 @@ class Node:
 
     def getData(self):
         "Return the nodes textual data" 
-        return join(self.data, '')
+        return ''.join(self.data)
 
     def getDataAsParts(self):
         "Return the node data as an array" 
@@ -156,7 +153,7 @@ class Node:
         "Set the nodes namespace." 
         self.namespace = namespace
 
-    def insertTag(self, name=None, attrs=None, payload=None, node=None):
+    def insertTag(self, name=None, attrs=None, payload=[], node=None):
         """ Add a child tag of name 'name' to the node.
 
             Returns the newly created node.
@@ -344,7 +341,7 @@ class Stream(NodeBuilder):
         self._timestampLog = timestamp
 
     def read(self):
-        """Reads incoming data. Blocks until done. Calls self.disconnected() if appropriate."""
+        """Reads incoming data. Blocks until done. Calls self.disconnected(self) if appropriate."""
         try: received = self._read(BLOCK_SIZE)
         except: received = ''
 
@@ -356,7 +353,7 @@ class Stream(NodeBuilder):
         if len(received): # length of 0 means disconnect
             self.DEBUG("got data " + received , DBG_XML_RAW )
             self.log(received, 'RECV:')
-        else: self.disconnected()
+        else: self.disconnected(self)
         return received
 
     def write(self,raw_data):
@@ -374,7 +371,7 @@ class Stream(NodeBuilder):
             self.DEBUG("sent %s" % data_out,DBG_XML_RAW)
         except:
             self.DEBUG("xmlstream write threw error",DBG_CONN_ERROR)
-            self.disconnected()
+            self.disconnected(self)
             
     def process(self, timeout=0):
         """Receives incoming data (if any) and processes it.
@@ -391,10 +388,10 @@ class Stream(NodeBuilder):
         self._sock.close()
         self._sock = None
         
-    def disconnected(self): ## To be overidden ##
+    def disconnected(self,conn): ## To be overidden ##
         """Called when a Network Error or disconnection occurs.
         Designed to be overidden"""
-        self.DEBUG("Network Disconnection",DBG_CONN_ERROR)
+        conn.DEBUG("Network Disconnection",DBG_CONN_ERROR)
         raise error("network error")
 
     def log(self, data, inout=''):
