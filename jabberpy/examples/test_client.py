@@ -5,11 +5,14 @@
 # You may need to change the above line to point at
 # python rather than python2 depending on your os/distro
 
-import jabber
 import socket
 from select import select
 from string import split,strip,join
-import sys
+import sys,os
+
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
+import jabber
 
 True = 1
 False = 0

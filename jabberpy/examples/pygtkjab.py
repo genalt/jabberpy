@@ -7,7 +7,7 @@
 #   -- catch errors better with dialog to show em.
 #
 
-import sys,string,os,re
+import sys,string,os,re,time
 import gtk, _gtk, GDK
 
 # Change path so we find jabber libs strait from tarball
@@ -80,7 +80,6 @@ class Tab:
         self._notebook.append_page(self._box,self._tab_label)
 
     def tabClicked(self, *args):
-        print "got it"
         return gtk.FALSE
 
     def highlight(self):
@@ -175,6 +174,33 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
                          ( self.gui.jabberObj.loggedin_jid.getStripped(), txt)
                          )
         return txt
+
+class Debug_Tab(Tab): ### Make bigger and Better !!!
+    def __init__(self, gui, title='DEBUG'):
+        Tab.__init__(self, gui, title)
+
+        self._id = "DEBUG"
+        
+        self._scroll = gtk.GtkScrolledWindow()
+        self._txt = gtk.GtkText()
+        self._txt.set_word_wrap( gtk.TRUE )
+        self._scroll.add(self._txt)
+        self._scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        self._box.pack_start(self._scroll, fill=gtk.TRUE, expand=gtk.TRUE)
+
+        self._hbox = gtk.GtkHBox()
+        self._box.show_all()
+        self._addToNoteBook()
+
+        ## this_tab.event_connected = 0 ??
+
+    def getJID(self):
+        return self._id
+
+
+    def recieve(self,obj):
+        return TRUE
+
 
 class Url_Tab(Tab): ### Make bigger and Better !!!
     def __init__(self, gui):
@@ -292,7 +318,6 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
             gtk.TRUE )
 
         _roster = self.gui.jabberObj.getRoster()
-        print _roster.getSummary()
         self._nodes = []
         jids = _roster.getJIDs()
         jids.sort(sort_jids)
@@ -307,7 +332,7 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
                 else:
                     show = " ( %s )" % _roster.getStatus(jid) 
             nice_name = str("%s %s" % ( nice_name, show ))
-            print "DEBUG: %s" % nice_name
+
             if _roster.getOnline(jid) == 'online':
                 node =self._ctree.insert_node(
                                  self._online_node, None, ( nice_name, )
@@ -341,6 +366,8 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
             self._ctree.node_set_row_data(node, str(jid))
             
         self._ctree.thaw()
+        if self.gui._tabs and self != self.gui.getSelectedTab():
+            self.highlight()
         
 class Logon_dialog(gtk.GtkWindow):                  
                                                  
@@ -837,6 +864,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
             ('/Tools/Transports', None, self.transCB, 0, ''),
             ('/Tools/Tabs/Rotate', None, self.rotateTabCB, 0, ''),
             ('/Tools/Tabs/Url Grabber', None, self.urlTabCB, 0, ''),
+            ('/Tools/Tabs/Debug', None, self.debugTabCB, 0, ''),
             ('/Help', None, None, 0, '<Branch>') ,
             ('/Help/About', None, self.infoCB, 0, '')
             ])
@@ -885,6 +913,14 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         else:
             self._tabs.append( Url_Tab(self) )
 
+    def debugTabCB(self, *args):
+        dbg_tab = self.findTab( 'DEBUG' )
+        if dbg_tab:
+            dbg_tab.destroy()            
+        else:
+            self._tabs.append( Debug_Tab(self) )
+
+
     def rotateTabCB(self, *args):
         if self.notebook.get_tab_pos() == gtk.POS_BOTTOM:
             self.notebook.set_tab_pos( gtk.POS_LEFT )
@@ -896,7 +932,6 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         while (trans_dia.done is None):
             self.jabberObj.process()
         if trans_dia.done == OK and trans_dia.selected:
-            print "SELECTED %s" % trans_dia.selected
             names = string.split(trans_dia.selected, '.')
             agent = names[0]
             trans_dia.close()
@@ -973,6 +1008,7 @@ class jabberClient(jabber.Client):
     def __init__(self):
         self.sleeper = None
         self.sleeper_state = None
+        self.gui = None
         not_connected = 1
         while not_connected:
 
@@ -983,8 +1019,7 @@ class jabberClient(jabber.Client):
 
             server   = login_dia.server
 
-            print "connecting"
-            jabber.Client.__init__(self,host=server,debug=1)
+            jabber.Client.__init__(self,host=server,debug=0)
             try:
                 self.connect()
             except:
@@ -994,7 +1029,7 @@ class jabberClient(jabber.Client):
                 msg_dia.close()
                 sys.exit(0)
             else:
-                print "Connected"
+                print "connected!"
 
             if (login_dia.done == 2):
                 new_acc_dia = New_ac_dialog(None, self)
@@ -1012,7 +1047,6 @@ class jabberClient(jabber.Client):
                 
             print "logging in"
             if self.auth(username,password,resource):
-                print "Logged in as %s to server %s" % ( username, server )
                 not_connected = 0
             else:
                 msg_dia = Msg_dialog(None, self.lastErr)
@@ -1028,7 +1062,6 @@ class jabberClient(jabber.Client):
         
         Known[server] = { 'xpm':'something' }
         
-        print "requesting roster"
         ## Build the roster Tab ##
         self.roster = []
         r = self.requestRoster()
@@ -1051,11 +1084,9 @@ class jabberClient(jabber.Client):
     def addChatTabViaRoster(self, *args):
         jid_raw = self.gui.getTab(0).get_roster_selection()
         if jid_raw:
-            print jid_raw
             jid = jabber.JID(jid_raw)
             i = 0
             for t in self.gui.getTabs():
-                print "comparing ", t.getJID() , jid.getStripped()
                 if t.getJID() == jid.getStripped():
                     self.gui.notebook.set_page(i)
                     return
@@ -1078,7 +1109,6 @@ class jabberClient(jabber.Client):
         self.send(msg_obj)
 
     def messageHandler(self, msg_obj):
-        print msg_obj
         tab = self.dispatch_to_gui(msg_obj)
         if tab is None:
             self.gui.addTab(
@@ -1101,9 +1131,6 @@ class jabberClient(jabber.Client):
         type = prs_obj.getType()
         who  = prs_obj.getFrom().getStripped()
 
-        print "DEBUG: pres got %s from %s" % ( type, who )
-        print "DEBUG: %s" % prs_obj
-        
         if type == 'subscribe':
             msg_dia = Msg_dialog(None,
                                  "subscribe request from %s" % (who),
@@ -1136,7 +1163,6 @@ class jabberClient(jabber.Client):
         self._unsub_lock = 0
 
     def iqHandler(self, iq_obj):
-        print "got iq", iq_obj.getQuery()
         self.dispatch_to_gui(iq_obj)
 
     def process(self,time=0.1):
@@ -1158,6 +1184,16 @@ class jabberClient(jabber.Client):
                     state_pres.setShow('Away from computer')
                 if state_pres: self.send(state_pres)
             self.sleeper_state = state
+
+    def log(self, data, inout=''):
+        ## we overide xmlstreams log method with our own
+        if self.gui:
+            dbg_tab = self.gui.findTab( 'DEBUG' )
+            if dbg_tab:
+                dbg_tab._txt.insert(None, None, None, "%s - %s - %s\n" % \
+                 (time.asctime(time.localtime(time.time())), inout, data ) )
+
+
 def main():
 
 #    pass args to jabberClient object

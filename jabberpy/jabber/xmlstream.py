@@ -342,9 +342,6 @@ class Stream:
         padding = padding * depth
         depth = depth + 1
         for n in nodes:
-            print padding + "name => " + n.name
-            print padding + "attrs => " , n.attrs
-            print padding + "data  => " , n.data
             if n.kids != None:
                 self.dispatch(n.kids, depth)
                 

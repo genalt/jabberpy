@@ -1019,7 +1019,6 @@ class Roster:
         to_ret = {}
         for jid in self._data.keys():
             to_ret[jid] = self._data[jid]['online']
-        print "hello", to_ret
         return to_ret
 
     def getJIDs(self):
