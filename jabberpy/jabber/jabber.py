@@ -694,15 +694,17 @@ class Client(Connection):
         iq=Iq(to=jid,type='get',query=ns)
         if node: iq.putAttr('node',node)
         rep=self.SendAndWaitForResponse(iq)
-        if rep: return rep.getQueryPayload()
+        if rep: ret=rep.getQueryPayload()
+        else: ret=[]
+        if not ret: ret=[]
+        return ret
 
     def discoverItems(self,jid,node=None):
         """ According to JEP-0030: jid is mandatory, name, node, action is optional. """
         ret=[]
         disco = self._discover(NS_P_DISC_ITEMS,jid,node)
-        if disco:
-            for i in disco:
-                ret.append(i.attrs)
+        for i in disco:
+            ret.append(i.attrs)
         return ret
 
     def discoverInfo(self,jid,node=None):
@@ -711,10 +713,9 @@ class Client(Connection):
             For feature: var is mandatory"""
         identities , features = [] , []
         disco = self._discover(NS_P_DISC_INFO,jid,node)
-        if disco:
-            for i in disco:
-                if i.getName()=='identity': identities.append(i.attrs)
-                elif i.getName()=='feature': features.append(i.getAttr('var'))
+        for i in disco:
+            if i.getName()=='identity': identities.append(i.attrs)
+            elif i.getName()=='feature': features.append(i.getAttr('var'))
         return identities, features
 
     def browseAgent(self,jid,node=None):
