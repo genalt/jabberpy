@@ -1314,7 +1314,7 @@ class JID:
     def __init__(self, jid='', node='', domain='', resource=''):
         if jid:
             if jid.find('@') == -1:
-                self.node = None
+                self.node = ''
             else:
                 bits = jid.split('@', 1)
                 self.node = bits[0]
@@ -1322,7 +1322,7 @@ class JID:
                 
             if jid.find('/') == -1:
                 self.domain = jid
-                self.resource = None
+                self.resource = ''
             else:
                 self.domain, self.resource = jid.split('/', 1) 
         else:
