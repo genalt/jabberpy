@@ -8,9 +8,9 @@
 #
 #
 
-import gtk
+import gtk, GDK
 import jabber
-import sys,string
+import sys,string,os
 
 TRUE = 1
 FALSE = 0
@@ -32,10 +32,10 @@ class Tab:
         self.cols['black']   = self.cmap.alloc('black')
 
         self.blue_tab_style = gtk.GtkLabel().get_style()
-        self.blue_tab_style.fg[0] = self.cols['blue'] 
+        #self.blue_tab_style.fg[0] = self.cols['blue'] 
         self.red_tab_style = gtk.GtkLabel().get_style()
-        self.red_tab_style.fg[0] = self.cols['red'] 
-        self.default_tab_style = gtk.GtkLabel().get_style()
+        #self.red_tab_style.fg[0] = self.cols['red'] 
+        #self.default_tab_style = gtk.GtkLabel().get_style()
 
 
         self.gui = gui
@@ -45,6 +45,7 @@ class Tab:
 
     def recieve(self,obj): pass
     def setCallBack(self,cb): self._cb = cb
+    def getCallBack(self): return self._cb 
     def getData(self): pass
     def setData(self,val): pass
 
@@ -65,9 +66,10 @@ class Tab:
         return gtk.FALSE
 
     def highlight(self):
-        self.blue_tab_style = self._tab_label.get_style()
+        style = self._tab_label.get_style()
+        self.blue_tab_style = style.copy()
         self.blue_tab_style.fg[0] = self.cols['blue'] 
-
+        #self._tab_label.set_name( "tab2" )
         print "HIGHLIGHTING"
         print "highlighting", str(self.__class__)
 #        my_style = self._tab_label.get_style();
@@ -80,9 +82,11 @@ class Tab:
 
     def lowlight(self):
         print "LOWLIGHTING"
-        self.red_tab_style = gtk.GtkLabel().get_style()
-        self.red_tab_style.fg[0] = self.cols['red'] 
-        self._tab_label.set_style(self.red_tab_style)
+        style = gtk.GtkLabel().get_style()
+        self.red_tab_style = style.copy()
+        self.red_tab_style.fg[0] = self.cols['black'] 
+        self._tab_label.set_style(style)
+        #self._tab_label.set_property("name", "tab1" )
 #        label = self._notebook.get_tab_label (self._notebook.get_current_page())
 #
 #        my_style = label.get_style();
@@ -124,7 +128,8 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
         self._entry = gtk.GtkEntry()
         self._hbox.pack_start(self._entry, fill=gtk.TRUE, expand=gtk.TRUE)
         self._send_button = gtk.GtkButton('send')
-        self._send_button.connect('clicked', self._cb, self)
+        #self._send_button.connect('clicked', self._cb, self)
+        #self._entry.connect('activate', self._cb, self )
         self._hbox.pack_end(self._send_button, fill=gtk.FALSE, expand=gtk.FALSE)
         self._box.pack_end(self._hbox, fill=gtk.TRUE, expand=gtk.FALSE)
 
@@ -192,6 +197,8 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
         # just a holder for now
     def rosterSelectCB(self, *args):
         self._roster_selected = int(args[1])
+        if args[3].type == GDK._2BUTTON_PRESS:
+            self._cb()
 
     def get_roster_selection(self):
         return str(self.gui.jabberObj.getRoster().getJIDs()[self._roster_selected])
@@ -222,10 +229,12 @@ class Logon_dialog(gtk.GtkWindow):
 
         gtk.GtkWindow.__init__(self)
 
-        self.password = None
-        self.username = None
-        self.server   = None
+        self.password = ''
+        self.username = ''
+        self.server   = 'jabber.org'
         self.done     = None
+
+
 
         self.connect("delete_event", self.delete_event)
         self.master = master
@@ -255,6 +264,7 @@ class Logon_dialog(gtk.GtkWindow):
 
 
         self.username_entry = gtk.GtkEntry()
+
         self.password_entry = gtk.GtkEntry()
         self.password_entry.set_visibility(gtk.FALSE)
 
@@ -282,7 +292,12 @@ class Logon_dialog(gtk.GtkWindow):
         
         self.frame_acc.add(self.table_acc)
         self.vbox.pack_end(self.frame_acc)
-    
+
+        self.readRC()
+        self.username_entry.set_text(self.username)
+        self.password_entry.set_text(self.password)
+        self.server_entry.set_text(self.server)
+        
         self.vbox.show_all()
         self.show()
         self.set_modal(gtk.TRUE)
@@ -291,15 +306,30 @@ class Logon_dialog(gtk.GtkWindow):
         self.password = self.password_entry.get_text()
         self.username = self.username_entry.get_text()
         self.server   = self.server_entry.get_text()
-        # self.save_password = self.save_check.getActive 
-        # 
-        #
-        
-        # if self.username and self.username: 
         self.done = gtk.TRUE
+        if self.save_check.get_active(): 
+            try:
+                rcfile = open(os.environ['HOME'] + "/.pyjab",'w')
+            except:
+                return
+            rcfile.write("%s\0%s\0%s\n" % (self.server, self.username, self.password))
+            rcfile.close()
+        else:
+            try: os.remove(os.environ['HOME'] + "/.pyjab")
+            except: pass # file dont exist, or I cant delete
+            
+    def readRC(self):
+        try:
+            rcfile = open(os.environ['HOME'] + "/.pyjab",'r')
+        except:
+            return
+        self.save_check.set_active(gtk.TRUE)
+        data = rcfile.readline()
+        self.server, self.username, self.password = data.split("\0")
+        rcfile.close()
+        return
 
     def new_account(self,*args):
-        
         self.done = gtk.TRUE
 
     def delete_event(win, event=None):
@@ -357,7 +387,7 @@ class Add_dialog(gtk.GtkDialog):
 class Msg_dialog(gtk.GtkDialog):                  
                                                  
     def __init__(self, master):
-        gtk.GtkDialog.__init__(self)
+        gtk.GtkDialog.__init__(self,msg)
 
         self.done     = None
         self.connect("delete_event", self.delete_event)
@@ -451,81 +481,56 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         else:
             print "not yet implemented"
             
-#    def displayMessage(self,jid,body):
-#        tab_no = self.findTab(jid)
-#        if tab_no is None: # do we have a window
-#            self.addChatTab(jid)
-#            print "DEBUG -> ", len(self.tabs) 
-#            self.notebook.set_page( len(self.tabs)  )
-#            tab_no = len(self.tabs)-1
-#
-#        self.tabs[tab_no].txt.insert(None,self.cols['red'], None, "<%s> " % jid)
-#        self.tabs[tab_no].txt.insert(None,None, None, "%s\n" % body)
-#        return tab_no
-#        
-#    def findTab(self,jid,type=TAB_MESSAGE):
-#        i = 0
-#        for t in self.tabs:
-#            if t.jid == jid and t._type == type: return i
-#            i = i + 1
-#        return None
-#    
-#    
     def quit(self, *args):
         print "got exit ?"
         gtk.mainquit()
 
 
 class jabberClient(jabber.Client):
-    def __init__(self,server,username,password,resource):
+    def __init__(self):
 
-        login_dia = Logon_dialog(None)
-        while (login_dia.done is None):
-            while gtk.events_pending(): gtk.mainiteration()
-        login_dia.close()
+        not_connected = 1
+        while not_connected:
+
+            login_dia = Logon_dialog(None)
+            while (login_dia.done is None):
+                while gtk.events_pending(): gtk.mainiteration()
+            login_dia.close()
         
-        print "connecting"
-        jabber.Client.__init__(self,host=server,log='Dummy')
-        try:
-            self.connect()
-        except xmlstream.error, e:
-            print "Couldn't connect: %s" % e 
-            sys.exit(0)
-        else:
-            print "Connected"
-        print "logging in"
-        if self.auth(username,password,resource):
-            print "Logged in as %s to server %s" % ( username, server )
-        else:
-            print "eek -> ", con.lastErr, con.lastErrCode
-            sys.exit(1)
+            server   = login_dia.server
+            username = login_dia.username
+            password = login_dia.password
+            resource = 'pygtkjab'
+
+            print "connecting"
+            jabber.Client.__init__(self,host=server,log='Dummy')
+            try:
+                self.connect()
+            except xmlstream.error, e:
+                print "Couldn't connect: %s" % e 
+                sys.exit(0)
+            else:
+                print "Connected"
+                
+            print "logging in"
+            if self.auth(username,password,resource):
+                print "Logged in as %s to server %s" % ( username, server )
+                not_connected = 0
+            else:
+                print "eek -> ", con.lastErr, con.lastErrCode
+                sys.exit(1)
+
+
 
         print "requesting roster"
         ## Build the roster Tab ##
         self.roster = []
         r = self.requestRoster()
-#        for jid in r.keys():
-#                if r[jid]['subscription'] == 'both':
-#                    status = 'offline'
-#                else:
-#                    status = 'pending'
-#                jid = jabber.JID(jid).getBasic()
-#                found = 0
-#                for item in self.roster:
-#                    if item['jid'] == jid: found = 1
-#                ##if jid and not roster.has_key(jid):
-#                if not found:    
-#                    self.roster.append( { 'jid':jid, 'status': status } )
-#
         self.gui = mainWindow("jabber app",jabberObj=self)
-
-        ##self.mainwin.addRosterTab(Roster_Tab,self.roster)
-        ##self.mainwin.addDebugTab()
-        
         self.sendInitPresence()                                  
-        ##self.JID = username + "@" + server 
         self.gui.getTab(0)._button.connect('clicked', self.addChatTabViaRoster )
-        ##self.mainwin.tabs[0].button.connect('clicked', self.newMessageTab)
+        self.gui.getTab(0)._cb = self.addChatTabViaRoster;
+
 
     def dispatch_to_gui(self,obj):
         recieved = None
@@ -533,35 +538,6 @@ class jabberClient(jabber.Client):
             if t.recieve(obj): recieved = t
         return recieved
 
-##    def  updateRoster(self, jid, status):
-##        if string.find(jid, '/') != -1:
-##            jid = string.split(jid,'/')[0]
-##        for item in self.roster:
-##            if item['jid'] == jid: item['status'] = status
-##        self.mainwin.update_roster_tab(self.roster)
-##
-##    def newMessageTab(self, *args):
-##        if self.mainwin.roster_selected != None:
-##            jid = self.roster[self.mainwin.roster_selected]['jid']
-##            self.mainwin.addChatTab(jid)
-##            self.mainwin.tabs[self.mainwin.findTab(jid)].button.connect('clicked', self.messageSend )
-##            self.mainwin.tabs[self.mainwin.findTab(jid)].entry.connect('activate', self.messageSend )
-##            
-##    def messageSend(self, *args):
-##        print args
-##        ## find out what tab is focused ##
-##        tab_no = self.mainwin.notebook.get_current_page()
-##        ## build the message for the inputted text ##
-##        msg = jabber.Message(self.mainwin.tabs[tab_no].jid,
-##                             self.mainwin.tabs[tab_no].entry.get_text() )
-##        msg.setType('chat')
-##        ## send it ##
-##        self.send(msg)
-##        ## clear the tabs input field ##
-##        self.mainwin.tabs[tab_no].entry.set_text('')
-##        ## show the sent text it the tabs text area ##
-##        self.mainwin.tabs[tab_no].txt.insert(None,None,None, "<%s> %s\n" % ( self.JID, msg.getBody()) )
-##
     def addChatTabViaRoster(self, *args):
         jid_raw = self.gui.getTab(0).get_roster_selection()
         if jid_raw:
@@ -575,7 +551,11 @@ class jabberClient(jabber.Client):
                     return
                 i=i+1
             self.gui.addTab( Chat_Tab(self.gui, jid) )
+
             self.gui.getTab(-1)._send_button.connect('clicked',
+                                                     self.messageSend,
+                                                     self.gui.getTab(-1) )
+            self.gui.getTab(-1)._entry.connect('activate',
                                                      self.messageSend,
                                                      self.gui.getTab(-1) )
 
@@ -597,6 +577,9 @@ class jabberClient(jabber.Client):
             self.gui._tabs[-1]._send_button.connect('clicked',
                                                     self.messageSend,
                                                     self.gui._tabs[-1] )
+            self.gui.getTab(-1)._entry.connect('activate',
+                                                     self.messageSend,
+                                                     self.gui.getTab(-1) )
             self.gui._tabs[-1].highlight()
         else:
             if tab != self.gui.getSelectedTab():
@@ -613,11 +596,8 @@ class jabberClient(jabber.Client):
     
 
 def main():
-    server   = sys.argv[1]
-    username = sys.argv[2]
-    password = sys.argv[3]
 
-    s = jabberClient(server,username,password,'default')
+    s = jabberClient()
     while(1): s.process()
     
 if __name__ == "__main__":
