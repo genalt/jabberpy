@@ -37,6 +37,7 @@ from select import select
 from string import split,find,replace,join
 import xml.parsers.expat
 import debug
+_debug=debug
 
 VERSION = "0.4+"
 
@@ -52,7 +53,7 @@ ENCODING = site.encoding
 BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
                        ## transactions
 
-DBG_INIT, DBG_CONNECT, DBG_ALWAYS = debug.DBG_INIT, debug.DBG_CONNECT, debug.DBG_ALWAYS
+DBG_INIT, DBG_ALWAYS = debug.DBG_INIT, debug.DBG_ALWAYS
 DBG_CONN_ERROR = 'conn-error'    ; debug.debug_flags.append( DBG_CONN_ERROR )
 DBG_XML_PARSE = 'xml-parse'      ; debug.debug_flags.append( DBG_XML_PARSE )
 DBG_XML_RAW = 'xml-raw'          ; debug.debug_flags.append( DBG_XML_RAW )
@@ -82,27 +83,27 @@ class error:
 class Node:
     """A simple XML DOM like class"""
     def __init__(self, tag=None, parent=None, attrs=None, payload=None, node=None):
-	if node:
-	    if type(node)<>type(self): node=NodeBuilder(node).getDom()
-	    self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = \
-		node.name,node.namespace,node.attrs,node.data,node.kids,node.parent
-	else:
-	    self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = 'tag','',{},[],[],None
+        if node:
+            if type(node)<>type(self): node=NodeBuilder(node).getDom()
+            self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = \
+                node.name,node.namespace,node.attrs,node.data,node.kids,node.parent
+        else:
+            self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = 'tag','',{},[],[],None
 
         if tag: self.namespace, self.name = (['']+tag.split())[-2:]
 
         if parent: self.parent = parent
 
-#	if self.parent and not self.namespace: self.namespace=self.parent.namespace	# Doesn't checked if this neccessary
+#        if self.parent and not self.namespace: self.namespace=self.parent.namespace	# Doesn't checked if this neccessary
 
-	if attrs: self.attrs = attrs
+        if attrs: self.attrs = attrs
 
-	if payload:
-	    if type(payload) not in (type([]),type(1,)): payload=[payload]
-	    for i in payload:
-		if type(i)==type(self): self.insertNode(i)
-		else: self.insertXML(i)
-#		self.insertNode(Node(node=i))	# Alternative way. Needs perfomance testing.
+        if payload:
+            if type(payload) not in (type([]),type(1,)): payload=[payload]
+            for i in payload:
+                if type(i)==type(self): self.insertNode(i)
+                else: self.insertXML(i)
+#                self.insertNode(Node(node=i))	# Alternative way. Needs perfomance testing.
 
     def setParent(self, node):
         "Set the nodes parent node."
@@ -221,52 +222,59 @@ class Node:
 class NodeBuilder:
     """builds a 'minidom' from data parsed to it. Primarily for insertXML
        method of Node"""
-    def __init__(self,data):
+    def __init__(self,data=None):
         self._parser = xml.parsers.expat.ParserCreate(namespace_separator=' ')
         self._parser.StartElementHandler  = self.unknown_starttag
         self._parser.EndElementHandler    = self.unknown_endtag
         self._parser.CharacterDataHandler = self.handle_data
 
         self.__depth = 0
-        self.__done  = 0 #needed ?
-        self.__space_regex = re.compile('^\s+$')
+        self._dispatch_depth = 1
         
-        self._parser.Parse(data,1)
+        if data: self._parser.Parse(data,1)
 
     def unknown_starttag(self, tag, attrs):
+        """XML Parser callback"""
         self.__depth = self.__depth + 1
-        if self.__depth == 1:
+        self.DEBUG("DEPTH -> %i , tag -> %s, attrs -> %s" % \
+                   (self.__depth, tag, str(attrs)),DBG_XML_PARSE )
+        if self.__depth == self._dispatch_depth:
             self._mini_dom = Node(tag=tag, attrs=attrs)
             self._ptr = self._mini_dom
-        elif self.__depth > 1:
-            self._ptr.kids.append(Node(tag   =tag,
-                                       parent=self._ptr,
-                                       attrs =attrs ))
+        elif self.__depth > self._dispatch_depth:
+            self._ptr.kids.append(Node(tag=tag,parent=self._ptr,attrs=attrs))
             self._ptr = self._ptr.kids[-1]
-        else:                           ## fix this ....
-            pass 
+        else:                           ## it the stream tag:
+            if attrs.has_key('id'):
+                self._incomingID = attrs['id']
 
     def unknown_endtag(self, tag ):
-        self.__depth = self.__depth - 1
-        if self.__depth == 0:
+        """XML Parser callback"""
+        self.DEBUG("DEPTH -> %i" % self.__depth,DBG_XML_PARSE)
+        if self.__depth == self._dispatch_depth:
             self.dispatch(self._mini_dom)
-        elif self.__depth > 0:
+        elif self.__depth > self._dispatch_depth:
             self._ptr = self._ptr.parent
         else:
-            pass
+            self.DEBUG("*** Stream terminated ? ****",DBG_CONN_ERROR)
+        self.__depth = self.__depth - 1
 
     def handle_data(self, data):
-        if not self.__space_regex.match(data):  ## check its not all blank 
-            self._ptr.data.append(data)
+        """XML Parser callback"""
+        self.DEBUG("data-> " + data,DBG_XML_PARSE)
+        self._ptr.data.append(data)
 
     def dispatch(self,dom):
-        self.__done = 1
+        pass
+
+    def DEBUG(dup1,dup2=None):
+        pass
 
     def getDom(self):
         return self._mini_dom
 
 
-class Stream:
+class Stream(NodeBuilder):
     def __init__(
                  self, host, port, namespace,
                  debug=[DBG_ALWAYS],
@@ -276,16 +284,11 @@ class Stream:
                  connection=TCP
                  ):
 
-
-        self._parser = xml.parsers.expat.ParserCreate(namespace_separator=' ')
-        self._parser.StartElementHandler  = self._unknown_starttag
-        self._parser.EndElementHandler    = self._unknown_endtag
-        self._parser.CharacterDataHandler = self._handle_data
+        NodeBuilder.__init__(self)
 
         self._host = host
         self._port = port 
         self._namespace = namespace
-        self.__depth = 0
         self._sock = sock
 
         self._sslObj    = None
@@ -295,7 +298,7 @@ class Stream:
         self._incomingID = None
         self._outgoingID = id
         
-        self._debug = debug.Debug(debug)
+        self._debug = _debug.Debug(debug)
         self.DEBUG = self._debug.show # makes it backwards compatible with current code
         self._connection=connection
 
@@ -324,60 +327,8 @@ class Stream:
         return self._sock
 
     def header(self):    
-        self.DEBUG("stream: sending initial header",DBG_INIT)
-        str = u"<?xml version='1.0' encoding='UTF-8' ?>   \
-                <stream:stream to='%s' xmlns='%s'" % ( self._host,
-                                                       self._namespace )
-        
-        if self._outgoingID: str = str + " id='%s' " % self._outgoingID 
-        str = str + " xmlns:stream='http://etherx.jabber.org/streams'>"
-        self.write (str)
-        self.read()
+        pass
 
-    def _handle_data(self, data):
-        """XML Parser callback"""
-        self.DEBUG("data-> " + data,DBG_XML_PARSE)
-        ## TODO: get rid of empty space
-        ## self._ptr.data = self._ptr.data + data 
-        self._ptr.data.append(data)
-        
-    def _unknown_starttag(self, tag, attrs):
-        """XML Parser callback"""
-        self.__depth = self.__depth + 1
-        self.DEBUG("DEPTH -> %i , tag -> %s, attrs -> %s" % \
-                   (self.__depth, tag, str(attrs)),DBG_XML_PARSE )
-        if self.__depth == 2:
-            self._mini_dom = Node(tag=tag, attrs=attrs)
-            self._ptr = self._mini_dom
-        elif self.__depth > 2:
-            self._ptr.kids.append(Node(tag=tag,parent=self._ptr,attrs=attrs))
-            self._ptr = self._ptr.kids[-1]
-        else:                           ## it the stream tag:
-            if attrs.has_key('id'):
-                self._incomingID = attrs['id']
-
-    def _unknown_endtag(self, tag ):
-        """XML Parser callback"""
-        self.__depth = self.__depth - 1
-        self.DEBUG("DEPTH -> %i" % self.__depth,DBG_XML_PARSE)
-        if self.__depth == 1:
-            self.dispatch(self._mini_dom)
-        elif self.__depth > 1:
-            self._ptr = self._ptr.parent
-        else:
-            self.DEBUG("*** Server closed connection ? ****",DBG_CONN_ERROR)
-
-    def dispatch(self, nodes, depth = 0):
-        """Overide with the method you want to called with
-        a node structure of a 'protocol element."""
-
-        padding = ' '
-        padding = padding * depth
-        depth = depth + 1
-        for n in nodes:
-            if n.kids != None:
-                self.dispatch(n.kids, depth)
-                
     ##def syntax_error(self, message):
     ##    self.DEBUG("error " + message,DBG_CONN_ERROR)
 
@@ -416,18 +367,13 @@ class Stream:
         return data
 
     def write(self,raw_data=u''):
-        """Writes raw outgoing data. blocks
-
-        changed 021231 by jaclu, added unicode encoding
-        """
-        if type(raw_data) == type(u''):
-            data_out = raw_data.encode('utf-8','replace')
-        else:
-            # since not suplied as unicode, we must guess at
-            # what the data is, iso-8859-1 seems reasonable.
-            # To avoid this auto assumption,
-            # send your data as a unicode string!
-            data_out = unicode(raw_data,'iso-8859-1').encode(ENCODING,'replace')
+        """Writes raw outgoing data. Blocks until done.
+           If supplied data is not unicode string, xmlstream.ENCODING
+           is used for convertion. Avoid this!
+           Always send your data as a unicode string."""
+        if type(raw_data) == type(''):
+            data_out = unicode(raw_data,ENCODING)
+        data_out = raw_data.encode('utf-8','replace')
         try:
             if self._connection == TCP:
                 self._sock.send (data_out)
@@ -461,7 +407,6 @@ class Stream:
         for s in ready_for_read:
             if s == reader:
                 if not len(self.read()): # length of 0 means disconnect
-                    ## raise error("network error") ?
                     self.disconnected()
                     return False
                 return True
@@ -477,7 +422,7 @@ class Stream:
         """Called when a Network Error or disconnection occurs.
         Designed to be overidden"""
         self.DEBUG("Network Disconnection",DBG_CONN_ERROR)
-        pass
+        raise error("network error")
 
     def log(self, data, inout=''):
         """Logs data to the specified filehandle. Data is time stamped 
@@ -508,7 +453,7 @@ class Client(Stream):
                                                                self._connection), DBG_INIT )
 
         ## TODO: check below that stdin/stdout are actually open
-        if self._connection == STDIO: return
+        if self._connection == STDIO: return False
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -529,7 +474,7 @@ class Client(Stream):
 
         self.DEBUG("connected",DBG_INIT)
         self.header()
-        return 0
+        return True
 
 class Server:    
 
