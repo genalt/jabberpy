@@ -249,7 +249,7 @@ class Connection(xmlstream.Client):
         if iq_obj.getAttr('id') and \
            self._expected.has_key(iq_obj.getAttr('id')):
             self._expected[iq_obj.getAttr('id')] = iq_obj
-        raise NodeProcessed('No need for further Iq processing.')
+            raise NodeProcessed('No need for further Iq processing.')
 
     def dispatch(self,stanza):
         """Called internally when a 'protocol element' is received.
