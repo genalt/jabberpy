@@ -7,9 +7,15 @@
 #   -- catch errors better with dialog to show em.
 #
 
-import gtk, _gtk, GDK
-import jabber
 import sys,string,os,re
+import gtk, _gtk, GDK
+
+# Change path so we find jabber libs strait from tarball
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], '../util'))
+
+import jabber
+import sleepy
 
 TRUE = 1
 FALSE = 0
@@ -528,7 +534,10 @@ class Add_dialog(gtk.GtkDialog):
         self.connect("delete_event", self.delete_event)
         self.master = master
         self.jabber = jabberObj
-        
+
+        if self.master:
+            self.set_transient_for(self.master)
+
         self.set_usize(200,150)
 
         self.table = gtk.GtkTable(5,2,gtk.FALSE)
@@ -639,6 +648,11 @@ class Msg_dialog(gtk.GtkDialog):
         self.connect("delete_event", self.delete_event)
         self.master = master
         self.set_usize(200,150)
+
+        if self.master:
+            self.set_transient_for(self.master)
+
+        
         self.msg_lbl = gtk.GtkLabel(msg)
         
         self.ok_button = gtk.GtkButton('Ok')
@@ -681,6 +695,9 @@ class Trans_dialog(gtk.GtkDialog):
         self.connect("delete_event", self.delete_event)
         self.master = master
         self.set_usize(200,150)
+
+        if self.master:
+            self.set_transient_for(self.master)
         
         self.ok_button = gtk.GtkButton('Ok')
         self.ok_button.connect('clicked', self.okay)
@@ -954,7 +971,8 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
 
 class jabberClient(jabber.Client):
     def __init__(self):
-
+        self.sleeper = None
+        self.sleeper_state = None
         not_connected = 1
         while not_connected:
 
@@ -1019,6 +1037,8 @@ class jabberClient(jabber.Client):
         self.sendInitPresence()                                  
         self._unsub_lock = 0 ## hack to fix unsubscribe wierdo bug
         self._pres_queue  = []
+        self.sleeper = sleepy.Sleepy()
+
 
     def addToRoster(self, *args): pass
               
@@ -1122,8 +1142,22 @@ class jabberClient(jabber.Client):
     def process(self,time=0.1):
         while gtk.events_pending(): gtk.mainiteration()
         jabber.Client.process(self,time)
-    
 
+        if self.sleeper:
+            state_pres = None
+            self.sleeper.poll()
+            state = self.sleeper.getState()
+            if state != self.sleeper_state:
+                if state == sleepy.STATE_WOKEN:
+                    state_pres = jabber.Presence(type='available')
+                    state_pres.setStatus('online')
+                    state_pres.setShow('')
+                if state == sleepy.STATE_SLEEPING:
+                    state_pres = jabber.Presence(type='available')
+                    state_pres.setStatus('away')
+                    state_pres.setShow('Away from computer')
+                if state_pres: self.send(state_pres)
+            self.sleeper_state = state
 def main():
 
 #    pass args to jabberClient object

@@ -136,10 +136,6 @@ class Connection(xmlstream.Client):
     def __init__(self, host, port, namespace,
                  debug=False, log=False, connection=xmlstream.TCP):
     
-#        self.msg_hdlr  = None
-#        self.pres_hdlr = None
-#        self.iq_hdlr   = None
-
         self.iq_hdlrs   = []
         self.msg_hdlrs  = []
         self.pres_hdlrs = []
@@ -237,7 +233,6 @@ class Connection(xmlstream.Client):
            can also be set so set functions are only called for
            iq elements with these properties.
            """
-        ##self.iq_hdlr = func
 
         self.iq_hdlrs.append({ type : { ns : func } }) 
         
@@ -248,7 +243,6 @@ class Connection(xmlstream.Client):
     def messageHandler(self, msg_obj):   ## Overide If You Want ##
         """Called when a message protocol element is recieved - can be
            overidden"""
-        ## if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
 
         output = ''
         for dicts in self.msg_hdlrs:
@@ -267,7 +261,6 @@ class Connection(xmlstream.Client):
     def presenceHandler(self, pres_obj): ## Overide If You Want ##
         """Called when a pressence protocol element is recieved - can be
            overidden"""
-        ## if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
 
         output = ''
         for dicts in self.pres_hdlrs:
@@ -287,7 +280,6 @@ class Connection(xmlstream.Client):
     def iqHandler(self, iq_obj):         ## Overide If You Want ##
         """Called when an iq protocol element is recieved - can be
            overidden"""
-        ##if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
 
         for dicts in self.iq_hdlrs: ## do stackables to check ##
             if dicts.has_key(iq_obj.getType()):
@@ -357,24 +349,12 @@ class Client(Connection):
     Inherits from the xmlstream Client class"""    
     def __init__(self, host, port=5222, debug=False, log=False):
     
-#        self.msg_hdlr  = None
-#        self.pres_hdlr = None
-#        self.iq_hdlr   = None
-#        self.disconnect_hdlr = None
-
         Connection.__init__(self, host, port,'jabber:client', debug, log)
-        
         
         self._roster = Roster()
         self._agents = {}
         self._reg_info = {}
         self._reg_agent = ''
-
-#        self._id = 0;
-#        self._expected = {}
-#        
-#        self.lastErr = ''
-#        self.lastErrCode = 0
 
         xmlstream.Client.__init__(self, host, port,
                                   'jabber:client', debug, log)
@@ -508,7 +488,6 @@ class Client(Connection):
         q.insertTag('username').insertData(username)
         self.send(auth_get_iq)
         
-        ## TODO fix for timeout and errors ...
         auth_ret_node = self.waitForResponse("auth-get").asNode()
         auth_ret_query = auth_ret_node.getTag('query')
         self.DEBUG("auth-get node arrived!")
@@ -540,7 +519,7 @@ class Client(Connection):
             q.insertTag('password').insertData(passwd)
             
         iq_result = self.SendAndWaitForResponse(auth_set_iq)
-        ## fix here for error too
+
         if iq_result.getError() is None:
             return True
         else:
@@ -694,9 +673,6 @@ class Protocol:
     def setXPayload(self, payload):
         """Sets the Child of an x tag. Can be a Node instance or a
         XML document"""
-##        x = self.getXNode()
-##
-##        if x is None:
         x = self._node.insertTag('x')
 
         if type(payload) == type('') or type(payload) == type(u''):
@@ -720,10 +696,6 @@ class Protocol:
         for xnode in self._node.getTags('x'):
             nodes.append(xnode.kids[0])
         return nodes
-#        x = self.getXNode()
-#        if x and len(x.kids):   ## x actually has some kids 
-#            return x.kids[0]
-#        return None
     
     def getXNode(self, val=None):
         """Returns the x Node instance. If there are multiple tags
@@ -749,11 +721,7 @@ class Protocol:
         except: return None
 
     def setXNode(self, val=''):
-        """Sets the x nodes data - just text"""
-##        x = self._node.getTag('x')
-##        if x:
-##            x.putData(val)
-##        else:
+        """Sets the x tags data - just text"""
         self._node.insertTag('x').putData(val)
 
     def fromTo(self):
@@ -780,22 +748,22 @@ class Message(Protocol):
     def getBody(self):
         "Returns the message body."
         body = self._node.getTag('body')
-        try: return self._node.getTag('body').data
+        try: return self._node.getTag('body').getData()
         except: return None
 
     def getSubject(self): 
         "Returns the messages subject."
-        try: return self._node.getTag('subject').data
+        try: return self._node.getTag('subject').getData()
         except: return None
 
     def getThread(self):
         "Returns the messages thread ID."
-        try: return self._node.getTag('thread').data
+        try: return self._node.getTag('thread').getData()
         except: return None
         
     def getError(self):
         "Returns the messgaes Error string, if any"
-        try: return self._node.getTag('error').data
+        try: return self._node.getTag('error').getData()
         except: return None
 
     def getErrorCode(self):
@@ -861,7 +829,6 @@ class Presence(Protocol):
     """Class for creating and managing jabber <presence> protocol
     elements"""
     def __init__(self, to=None, type=None, node=None):
-        ##self.frm = 'mallum@jabber.com'
         if node:
             self._node = node
         else:
@@ -924,7 +891,7 @@ class Iq(Protocol):
 
     def getError(self):
         """Returns the Iq's error string, if any"""
-        try: return self._node.getTag('error').data
+        try: return self._node.getTag('error').getData()
         except: return None
 
     def getErrorCode(self):
@@ -971,7 +938,7 @@ class Iq(Protocol):
         if type(payload) == type('') or type(payload) == type(u''):
                 payload = xmlstream.NodeBuilder(payload).getDom()
 
-        q.kids = [] # should be a method for this realy 
+        q.kids = []
         q.insertNode(payload)
                 
     def getQueryPayload(self):
@@ -1078,7 +1045,7 @@ class Roster:
         """Used internally - private"""
         jid = str(jid) # just in case
         online = 'offline'
-        if ask: online = 'pending' ## DJ - should this be To? ##
+        if ask: online = 'pending'
         if self._data.has_key(jid): # update it
             self._data[jid]['name'] = name
             self._data[jid]['ask'] = ask
@@ -1086,7 +1053,6 @@ class Roster:
         else:
             self._data[jid] = { 'name': name, 'ask': ask, 'sub': sub,
                                 'online': online, 'status': None, 'show': None} 
-
     def _setOnline(self,jid,val):
         """Used internally - private"""
         jid = str(jid) 
@@ -1186,40 +1152,6 @@ class JID:
         if self.domain: jid_str = jid_str + self.domain
         return jid_str
 
-## component protocol elements
-
-class XDB(Protocol):
-    
-    def __init__(self, to='', frm='', type=None, node=None):
-        if node:
-            self._node = node
-        else:
-            self._node = xmlstream.Node(tag='xdb')
-        if to: self.setTo(to)
-        if type: self.setType(type)
-        if frm: self.setFrom(type)
-
-
-class Log(Protocol):
-    ## eg: <log type='warn' from='component'>Hello Log File</log>
-    
-    def __init__(self, to='', frm='', type=None, node=None):
-        if node:
-            self._node = node
-        else:
-            self._node = xmlstream.Node(tag='log')
-        if to:   self.setTo(to)
-        if type: self.setType(type)
-        if frm: self.setFrom(type)
-
-    def setBody(self,val):
-        "Sets the log message text."
-        self._node.getTag('log').putData(val)
-
-    def setBody(self):
-        "Returns the log message text."
-        return self._node.getTag('log').data
-
 ## component types
 
 ## Accept  jabber:component:accept
@@ -1255,6 +1187,42 @@ class Component(Connection):
         if root_node.name == 'handshake': # check id too ?
             self._auth_OK = True
         Connection.dispatch(self, root_node)
+
+
+## component protocol elements
+
+class XDB(Protocol):
+    
+    def __init__(self, to='', frm='', type=None, node=None):
+        if node:
+            self._node = node
+        else:
+            self._node = xmlstream.Node(tag='xdb')
+        if to: self.setTo(to)
+        if type: self.setType(type)
+        if frm: self.setFrom(type)
+
+
+class Log(Protocol):
+    ## eg: <log type='warn' from='component'>Hello Log File</log>
+    
+    def __init__(self, to='', frm='', type=None, node=None):
+        if node:
+            self._node = node
+        else:
+            self._node = xmlstream.Node(tag='log')
+        if to:   self.setTo(to)
+        if type: self.setType(type)
+        if frm: self.setFrom(type)
+
+    def setBody(self,val):
+        "Sets the log message text."
+        self._node.getTag('log').putData(val)
+
+    def setBody(self):
+        "Returns the log message text."
+        return self._node.getTag('log').getData()
+
 
 class Server:
     pass

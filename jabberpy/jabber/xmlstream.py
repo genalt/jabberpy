@@ -44,6 +44,14 @@ True  = 1
 TCP    = 1
 STDIO  = 0
 
+FB_ENCODING = 'ascii'  ## fallback encoding to avoid random
+                       ## random UnicodeError: ASCII decoding error:
+                       ##                      ordinal not in range(128)
+                       ## type errors - being looked into. 
+
+BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
+                       ## transactions
+
 def XMLescape(txt):
     "Escape XML entities"
     txt = replace(txt, "&", "&amp;")
@@ -118,7 +126,7 @@ class Node:
 
     def getData(self):
         "Return the nodes textual data" 
-        return self.data
+        return XMLunescape(self.data)
 
     def getNamespace(self):
         "Returns the nodes namespace." 
@@ -345,24 +353,30 @@ class Stream:
 
     def read(self):
         """Reads incoming data. Called by process() so nonblocking"""
-        data = unicode('','utf8')
-        data_in = unicode('','utf8')
+        data =    u''
+        data_in = u''
         if self._connection == TCP:
-            data_in = data_in + unicode(self._sock.recv(1024),'utf-8')
+            data_in = data_in + \
+              unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(FB_ENCODING,
+                                                            'replace')
             while data_in:
                 data = data + data_in
-                if len(data_in) != 1024:
+                if len(data_in) != BLOCK_SIZE:
                     break
-                data_in = unicode(self._sock.recv(1024),'utf-8')
+                data_in = unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(
+                    FB_ENCODING, 'replace')
+
                 
         elif self._connection == STDIO:
             ## Hope this dont buffer !
-            data_in = data_in + unicode(sys.stdin.read(1024),'utf-8')
+            data_in = data_in + unicode(sys.stdin.read(1024),'utf-8').encode(
+                    FB_ENCODING, 'replace')
             while data_in:
                 data = data + data_in
                 if len(data_in) != 1024:
                     break
-                data_in = unicode(sys.stdin.read(1024),'utf-8')
+                data_in = unicode(sys.stdin.read(1024),'utf-8').encode(
+                    FB_ENCODING, 'replace')
         else:
             pass # should never get here
             
@@ -506,7 +520,6 @@ class Server:
                     else:
                     # this may block: should really select for writes too
                         sockobj.send('Echo=>%s' % data)
-
 
     def _makeNewStream(self, sckt):
         new_stream = Stream('localhost', 5222,
