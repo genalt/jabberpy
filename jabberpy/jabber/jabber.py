@@ -702,19 +702,32 @@ class Protocol:
         x.kids = [] # should be a method for this realy 
         x.insertNode(payload)
                 
-    def getXPayload(self):
+    def getXPayload(self, val=None):
         """Returns the x tags payload as a Node instance"""
-        x = self.getXNode()
-        if x and len(x.kids):   ## x actually has some kids 
-            return x.kids[0]
-        return None
+        nodes = []
+        if val is not None:
+            if type(val) == type(""):
+                for xnode in self._node.getTags('x'):
+                    if xnode.getNamespace() == val: nodes.append(xnode.kids[0])
+                return nodes
+            else:
+                try: return self._node.getTags('x')[val].kids[0]
+                except: return None
+
+        for xnode in self._node.getTags('x'):
+            nodes.append(xnode.kids[0])
+        return nodes
+#        x = self.getXNode()
+#        if x and len(x.kids):   ## x actually has some kids 
+#            return x.kids[0]
+#        return None
     
     def getXNode(self, val=None):
         """Returns the x Node instance. If there are multiple tags
            the first Node is returned. For multiple X nodes use getXNodes
            or pass an index integer value or namespace string to getXNode
            and if a match is found it will be returned"""
-        if val:
+        if val is not None:
             nodes = []
             if type(val) == type(""):
                 for xnode in self._node.getTags('x'):
