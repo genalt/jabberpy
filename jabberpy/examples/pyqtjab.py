@@ -239,8 +239,8 @@ class DocumentWindow (QMainWindow):
         self.initWidgets()
 
         if self.con:
-            self.con.setPresenceHandler(self.presenceCB)
-            self.con.setMessageHandler(self.messageCB)
+            self.con.registerHandler('presence',self.presenceCB)
+            self.con.registerHandler('message',self.messageCB)
             self.statusBar().message('Connected')
             
         self.timer = QTimer(self)

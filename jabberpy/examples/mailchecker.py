@@ -291,9 +291,9 @@ else:
     print "problems with handshake: ", con.lastErr, con.lastErrCode
     sys.exit(1)
 
-# con.setMessageHandler(messageCB)
-con.setPresenceHandler(presenceCB)
-con.setIqHandler(iqCB)
+# con.registerHandler('message',messageCB)
+con.registerHandler('presence',presenceCB)
+con.registerHandler('iq',iqCB)
 
 p = jabber.Presence(type='available')
 p.setFrom('mailcheck/registered')

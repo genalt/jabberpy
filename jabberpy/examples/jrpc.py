@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/python
 """
 jrpc demonstrates extending an iq with the QueryPayload methods.
 
@@ -69,9 +69,9 @@ else:
     print "Connected"
 
 ## Attatch the above iq callback
-con.setIqHandler(iq_CB)
-con.setIqHandler(iq_error_CB, type='error')
-con.setIqHandler(iq_xmlrpc_response_CB, type='get', ns='jabber:iq:rpc')
+con.registerHandler('iq',iq_CB)
+con.registerHandler('iq',iq_error_CB, type='error')
+con.registerHandler('iq',iq_xmlrpc_response_CB, type='get', ns='jabber:iq:rpc')
 
 ## Authenticate
 if con.auth(Username,Password,Resource):
