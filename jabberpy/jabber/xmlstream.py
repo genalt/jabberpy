@@ -283,7 +283,7 @@ class Stream:
         if self._outgoingID: str = str + " id='%s' " % self._outgoingID 
         str = str + " xmlns:stream='http://etherx.jabber.org/streams'>"
         self.write (str)
-        #self.read()
+        self.read()
 
     def _handle_data(self, data):
         """XML Parser callback"""

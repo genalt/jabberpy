@@ -1,19 +1,28 @@
 #!/usr/bin/env python2
 
-#
-# THIS IS WAY ALPHA CODE. USE AT YOUR OWN RISK ;)
-#
-#
-#
-#
-#
-
-import gtk, GDK
+import gtk, _gtk, GDK
 import jabber
-import sys,string,os
+import sys,string,os,re
 
 TRUE = 1
 FALSE = 0
+OK = 1
+CANCEL = 2
+
+## add a server name entry to the below ## 
+Known = {
+          'yahoo':
+             { 'xpm' : 'an xpm path' },
+          'msn':
+             { 'xpm' : 'info....'},
+          'icq':
+             { 'xpm' : 'info....'},
+        }
+
+def makeKnownNice(jid):
+    for known in Known.keys():
+        if re.match("^"+known+".*", jid.getDomain()): return jid.getNode()
+    return str(jid)
 
 class Tab:
     def __init__(self, gui, title):
@@ -52,13 +61,14 @@ class Tab:
         return gtk.FALSE
 
     def highlight(self):
+        #style = _gtk.gtk_rc_get_style() # self._tab_label)
         style = self._tab_label.get_style()
         new_style = style.copy()
         new_style.fg[0] = self.cols['blue'] 
         self._tab_label.set_style(new_style)
 
     def lowlight(self):
-        style = gtk.GtkLabel().get_style()
+        style = self._tab_label.get_style()
         new_style = style.copy()
         new_style.fg[0] = self.cols['black'] 
         self._tab_label.set_style(new_style)
@@ -77,8 +87,8 @@ class Tab:
 
 
 class Chat_Tab(Tab): ### Make bigger and Better !!!
-    def __init__(self, gui, jid):
-        Tab.__init__(self, gui, jid.getStripped())
+    def __init__(self, gui, jid, title='a tab'):
+        Tab.__init__(self, gui, title)
 
         self._id = str(jid.getStripped())
         
@@ -109,7 +119,7 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
 
 
     def recieve(self,obj):
-        if obj.getFrom().getStripped() == self._title:
+        if obj.getFrom().getStripped() == self._id:
             if str(obj.__class__) == 'jabber.Message':
                 self._txt.insert(None,self.cols['red'], None,
                                  "<%s> " % obj.getFrom().getStripped())
@@ -135,14 +145,69 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
     def getData(self):
         txt = self._entry.get_text() 
         self._entry.set_text('')
-        self._txt.insert(None,None,None, "<%s> %s\n" % ( self._id, txt) )
+        self._txt.insert(None,None,None, "<%s> %s\n" %
+                         ( self.gui.jabberObj.loggedin_jid.getStripped(), txt)
+                         )
         return txt
+
+class Url_Tab(Tab): ### Make bigger and Better !!!
+    def __init__(self, gui):
+        Tab.__init__(self, gui, 'URLs')
+
+        self._id = 'URLs'
+        self._regexp = re.compile('(http://[^\s]+)', re.IGNORECASE)
+
+        self._scrolled_win = gtk.GtkScrolledWindow()
+        self._scrolled_win.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        self._box.pack_start(self._scrolled_win)
+
+
+        self._list = gtk.GtkList()
+        self._list.set_selection_mode(gtk.SELECTION_BROWSE)
+        self._scrolled_win.add_with_viewport(self._list)
+
+
+        self._list.connect("select-child" , self.selectCB)
+
+
+        self._hbox = gtk.GtkHBox()
+        self._open_button = gtk.GtkButton('open')
+        self._hbox.pack_end(self._open_button, fill=gtk.FALSE,
+                            expand=gtk.FALSE)
+        self._box.pack_end(self._hbox, fill=gtk.TRUE, expand=gtk.FALSE)
+        self._box.show_all()
+        self._addToNoteBook()
+
+        ## this_tab.event_connected = 0 ??
+
+    def getJID(self):
+        return self._id
+
+
+    def recieve(self,obj):
+        if str(obj.__class__) == 'jabber.Message':
+            m = self._regexp.match(obj.getBody())
+            if m:
+                list_item = gtk.GtkListItem(m.group())
+                self._list.add(list_item)
+                list_item.show()
+                return TRUE
+        return FALSE
+    
+    def selectCB(self, *args): pass
 
 
 class Roster_Tab(Tab): ### Make bigger and Better !!!
     def __init__(self, gui, title):
         Tab.__init__(self, gui, title)
         self._roster_selected = None
+        self._online_icon, self._online_mask = \
+          gtk.create_pixmap_from_xpm( gui.get_window(), None,"online.xpm" );
+        self._offline_icon, self._offline_mask = \
+          gtk.create_pixmap_from_xpm( gui.get_window(), None,"offline.xpm" );
+        self._pending_icon, self._pending_mask = \
+          gtk.create_pixmap_from_xpm( gui.get_window(), None,"pending.xpm" );
+
         self._rows = []
 
         self._scroll = gtk.GtkScrolledWindow()
@@ -160,11 +225,6 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
         self._box.pack_start(self._scroll, fill=gtk.TRUE, expand=gtk.TRUE)
 
         self._hbox = gtk.GtkHBox()
-        self._button = gtk.GtkButton('Chat')
-        self._hbox.pack_start(self._button, fill=gtk.FALSE, expand=gtk.FALSE)
-        self._add_button = gtk.GtkButton('Add')
-        self._hbox.pack_start(self._add_button, fill=gtk.FALSE,
-                              expand=gtk.FALSE)
 
         self._box.pack_end(self._hbox, fill=gtk.TRUE, expand=gtk.FALSE)
 
@@ -206,20 +266,37 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
         _roster = self.gui.jabberObj.getRoster()
         print _roster.getSummary()
         self._nodes = []
-        for jid in _roster.getJIDs():
+        jids = _roster.getJIDs()
+        jids.sort()
+        for jid in jids:
             attach_node = None
+            nice_name = makeKnownNice(jid)
             if _roster.getOnline(jid) == 'online':
-                attach_node = self._online_node
+                node =self._ctree.insert_node(
+                                 self._online_node, None, ( nice_name, ), 2,
+                                 pixmap_closed = self._online_icon,
+                                 mask_closed   = self._online_mask,
+                                 is_leaf=gtk.TRUE,
+                                 expanded=gtk.TRUE )
+
             elif _roster.getOnline(jid) == 'offline':
-                attach_node = self._offline_node
+                node =self._ctree.insert_node(
+                                 self._offline_node, None, ( nice_name, ), 2,
+                                 pixmap_closed = self._offline_icon,
+                                 mask_closed   = self._offline_mask,
+                                 is_leaf=gtk.TRUE,
+                                 expanded=gtk.TRUE )
+
             elif _roster.getOnline(jid) == 'pending':
-                attach_node = self._pending_node
+                node =self._ctree.insert_node(
+                                 self._pending_node, None, ( nice_name, ), 2,
+                                 pixmap_closed = self._pending_icon,
+                                 mask_closed   = self._pending_mask,
+                                 is_leaf=gtk.TRUE,
+                                 expanded=gtk.TRUE )
             else:
                 pass
-            node =self._ctree.insert_node(
-                                 attach_node, None, ( str(jid), ), 2,
-                                 None, None, None, None, gtk.TRUE,
-                                 gtk.TRUE )
+
             self._nodes.append(node)
             self._ctree.node_set_row_data(node, str(jid))
 
@@ -339,7 +416,7 @@ class Logon_dialog(gtk.GtkWindow):
 
 class New_ac_dialog(gtk.GtkWindow):                  
                                                  
-    def __init__(self, master, jabber):
+    def __init__(self, master, jabber, agent=None):
 
         gtk.GtkWindow.__init__(self)
 
@@ -347,12 +424,12 @@ class New_ac_dialog(gtk.GtkWindow):
         self.master = master
         self.jabber = jabber
         self.done = None
-        
+        self.agent = agent
         self.vbox = gtk.GtkVBox(gtk.FALSE,5)
         self.add(self.vbox)
 
         self.frame = gtk.GtkFrame("New Account")
-        self.jabber.requestRegInfo()
+        self.jabber.requestRegInfo(self.agent)
         req = self.jabber.getRegInfo()
 
         self.table = gtk.GtkTable(6,6,gtk.FALSE)
@@ -392,8 +469,8 @@ class New_ac_dialog(gtk.GtkWindow):
                                     self.entrys[info]['entry'].get_text() )
         self.username = self.entrys['username']['entry'].get_text()
         self.password = self.entrys['password']['entry'].get_text()
-        self.jabber.sendRegInfo()
-        self.done = gtk.TRUE
+        self.jabber.sendRegInfo(self.agent)
+        self.done = OK
 
     def delete_event(win, event=None):
         self.hide()
@@ -496,6 +573,66 @@ class Msg_dialog(gtk.GtkDialog):
         self.hide()
         del self
 
+class Trans_dialog(gtk.GtkDialog):                  
+                                                 
+    def __init__(self, master, jabberObj ):
+        gtk.GtkDialog.__init__(self)
+
+        self.agents = jabberObj.requestAgents()
+
+        self.done     = None
+        self.connect("delete_event", self.delete_event)
+        self.master = master
+        self.set_usize(200,150)
+        
+        self.ok_button = gtk.GtkButton('Ok')
+        self.ok_button.connect('clicked', self.okay)
+        self.action_area.pack_start(self.ok_button,expand=gtk.FALSE)
+        self.cancel_button = gtk.GtkButton('Cancel')
+        self.cancel_button.connect('clicked', self.cancel)
+        self.action_area.pack_start(self.cancel_button,expand=gtk.FALSE)
+
+        self.scrolled_win = gtk.GtkScrolledWindow()
+        self.scrolled_win.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        self.vbox.pack_start(self.scrolled_win)
+
+        self.list = gtk.GtkList()
+        self.list.set_selection_mode(gtk.SELECTION_BROWSE)
+        self.scrolled_win.add_with_viewport(self.list)
+
+        for i in self.agents.keys():
+            if self.agents[i].has_key('transport'):
+                list_item = gtk.GtkListItem(self.agents[i]['name'])
+                list_item.set_data('jid', i)
+                self.list.add(list_item)
+                list_item.show()
+
+        self.list.connect("select-child" , self.selectCB)
+            
+        self.vbox.pack_start(self.scrolled_win)
+        self.vbox.show_all()
+        self.action_area.show_all()
+        self.show()
+        self.selected = None
+        self.set_modal(gtk.TRUE)
+
+    def selectCB(self, *args):
+        self.selected = args[1].get_data('jid')
+
+    def okay(self,*args):
+        self.done = OK
+
+    def cancel(self,*args):
+        self.done = CANCEL
+
+    def delete_event(win, event=None):
+        self.hide()
+        self.done = MSG_DIA_RET_CANCEL
+
+    def close(self,*args):
+        self.hide()
+        del self
+
 
 class mainWindow(gtk.GtkWindow):         # Usual Base
     def __init__(self, title='pygtk app', jabberObj=None,
@@ -549,9 +686,12 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
                                   1, ''),            
             ('/Roster/sep1',        None, None, 0, '<Separator>'),            
             ('/Roster/Add',        None, self.addCB, 1, ''),
-            ('/Roster/Remove',     None, self.removeCB, 2, ''),
+            ('/Roster/Remove',     None, self.removeCB, 0, ''),
+            ('/Roster/Transports', None, self.transCB, 0, ''),
             ('/Tab',               None, None, 0, '<Branch>'),
             ('/Tab/Close',         None, self.closeTabCB, 1, ''),
+            ('/Tab/sep1',        None, None, 0, '<Separator>'),
+            ('/Tab/Url Grabber', None, self.urlTabCB, 0, ''),            
             ('/Help', None, None, 0, '<Branch>') ,
             ('/Help/About', None, self.infoCB, 0, '')
             ])
@@ -559,6 +699,29 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.menubar = self.itemf.get_widget('<main>')
         self.box.pack_start(self.menubar, fill=gtk.FALSE, expand=gtk.FALSE)
         self.menubar.show()
+
+    def urlTabCB(self, *args):
+        url_tab = self.findTab( 'URLs' )
+        if url_tab:
+            url_tab.destroy()            
+        else:
+            self._tabs.append( Url_Tab(self) )
+
+    def transCB(self, *args):
+        trans_dia = Trans_dialog(None, self.jabberObj)
+        while (trans_dia.done is None):
+            self.jabberObj.process()
+        if trans_dia.done == OK and trans_dia.selected:
+            print "SELECTED %s" % trans_dia.selected
+            names = string.split(trans_dia.selected, '.')
+            agent = names[0]
+            trans_dia.close()
+            new_acc_dia = New_ac_dialog(None, self.jabberObj, agent=agent)
+            while (new_acc_dia.done is None):
+                self.jabberObj.process()
+            new_acc_dia.close()
+            return
+        trans_dia.close()
     
     def addCB(self, *args):
         add_dia = Add_dialog(self, self.jabberObj )      
@@ -592,6 +755,11 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         
     def notebook_switched(self, *args):
         gtk.idle_add(self.handle_switch)
+
+    def findTab(self,id):
+        for tab in self._tabs:
+            if tab._id == id: return tab
+        return None
  
     def getTabs(self):
         return self._tabs
@@ -614,7 +782,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
             print "not yet implemented"
             
     def quit(self, *args):
-        gtk.mainquit()
+        #gtk.mainquit()
         sys.exit(0)
 
 class jabberClient(jabber.Client):
@@ -669,18 +837,16 @@ class jabberClient(jabber.Client):
                 #print "eek -> ", self.lastErr, self.lastErrCode
                 sys.exit(1)
 
-
+        self.loggedin_jid = jabber.JID( node = username, domain = server,
+                                        resource = resource );
+        Known[server] = { 'xpm':'something' }
+        
         print "requesting roster"
         ## Build the roster Tab ##
         self.roster = []
         r = self.requestRoster()
         self.gui = mainWindow("jabber app",jabberObj=self)
         self.sendInitPresence()                                  
-        self.gui.getTab(0)._button.connect('clicked',
-                                           self.addChatTabViaRoster )
-        self.gui.getTab(0)._add_button.connect('clicked',
-                                               self.addToRoster )
-
         self.gui.getTab(0)._cb = self.addChatTabViaRoster;
 
         self._unsub_lock = 0 ## hack to fix unsubscribe wierdo bug
@@ -705,7 +871,7 @@ class jabberClient(jabber.Client):
                     self.gui.notebook.set_page(i)
                     return
                 i=i+1
-            self.gui.addTab( Chat_Tab(self.gui, jid) )
+            self.gui.addTab( Chat_Tab(self.gui, jid, makeKnownNice(jid) ) )
 
             self.gui.getTab(-1)._send_button.connect('clicked',
                                                      self.messageSend,
@@ -726,7 +892,8 @@ class jabberClient(jabber.Client):
         tab = self.dispatch_to_gui(msg_obj)
         if tab is None:
             self.gui.addTab(
-                Chat_Tab(self.gui, msg_obj.getFrom())
+                Chat_Tab(self.gui, msg_obj.getFrom(),
+                         makeKnownNice(msg_obj.getFrom()) )
                 ).recieve(msg_obj)
             self.gui._tabs[-1]._send_button.connect('clicked',
                                                     self.messageSend,
@@ -746,6 +913,8 @@ class jabberClient(jabber.Client):
 
         print "DEBUG: pres got %s from %s" % ( type, who )
         print "DEBUG: %s" % prs_obj
+        
+
 
         if type == 'subscribe':
             msg_dia = Msg_dialog(None,
@@ -771,11 +940,12 @@ class jabberClient(jabber.Client):
             if (msg_dia.done == MSG_DIA_RET_OK):
                 self.send(jabber.Presence(to=who, type='unsubscribed'))
             msg_dia.close()
-            self._unsub_lock = 0
+
 
         else: pass
 
         self.dispatch_to_gui(prs_obj)
+        self._unsub_lock = 0
 
     def iqHandler(self, iq_obj):
         print "got iq", iq_obj.getQuery()

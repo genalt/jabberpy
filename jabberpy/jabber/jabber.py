@@ -472,11 +472,13 @@ class Client(xmlstream.Client):
 
     ## Registration 'helper' funcs ##
     
-    def requestRegInfo(self,agent=''):
+    def requestRegInfo(self,agent=None):
         """Requests registration info from the server.
         returns a dict of required values."""
         if agent: agent = agent + '.'
+        if agent is None: agent = ''
         self._reg_info = {}
+        self.DEBUG("agent -> %s, _host -> %s" % ( agent ,self._host))
         reg_iq = Iq(type='get', to = agent + self._host)
         reg_iq.setQuery('jabber:iq:register')
         self.DEBUG("got reg response")
@@ -492,9 +494,10 @@ class Client(xmlstream.Client):
            called before setting."""
         self._reg_info[key] = val
 
-    def sendRegInfo(self, agent=''):
+    def sendRegInfo(self, agent=None):
         """Sends the populated register dict back to the server"""
         if agent: agent = agent + '.'
+        if agent is None: agent = ''
         reg_iq = Iq(to = agent + self._host, type='set')
         q = reg_iq.setQuery('jabber:iq:register')
         for info in self._reg_info.keys():
@@ -1094,7 +1097,7 @@ class JID:
     def setNode(self,val):
         """Sets JID Node from string"""
         self.node = val
-    def getDomain(self,val):
+    def setDomain(self,val):
         """Sets JID domain from string"""
         self.domain = val
     def getResource(self,val):
@@ -1129,7 +1132,7 @@ class Component(BaseClient):
                    % sha.new( self.getIncomingID() + secret ).hexdigest()
                   )
         while not self._auth_OK:
-            self.DEBUG("waiting on %s" % str(ID))
+            self.DEBUG("waiting on handshake")
             self.process(1)
 
         return True
