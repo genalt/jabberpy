@@ -23,18 +23,23 @@ import xmlrpclib
 ## Setup server and auth varibles
 ## You'll need to edit these. 
 Server   = 'jabber.com'
-Username = 'xxxxxx'
-Password = 'xxxxxx'
+Username = 'xxxx'
+Password = 'xxxx'
 Resource = 'xmlrpc'
 
 IqID     = '999999'
 
+def iq_CB(con,iq):
+    print "got an iq"
 
+def iq_error_CB(con,iq):
+    print "got an error -> ", iq.getError()
+    
 ## This is called when an Iq is recieved 
-def iqCB(con,iq):
-    queryNS = iq.getQuery()
+def iq_xmlrpc_response_CB(con,iq):
+
     ## Get the query part of the Iq and check its namespace and id
-    if queryNS == 'jabber:iq:rpc' and iq.getID() == IqID:
+    if iq.getID() == IqID:
 
         ## Get the querys 'payload' , will return an XMLStreanNode structure
         xmlrpc_node = iq.getQueryPayload()
@@ -64,7 +69,9 @@ else:
     print "Connected"
 
 ## Attatch the above iq callback
-con.setIqHandler(iqCB)
+con.setIqHandler(iq_CB)
+con.setIqHandler(iq_error_CB, type='error')
+con.setIqHandler(iq_xmlrpc_response_CB, type='get', ns='jabber:iq:rpc')
 
 ## Authenticate
 if con.auth(Username,Password,Resource):
