@@ -1,18 +1,81 @@
-Jabber.py 0.01 README
+jabberpy  0.1 README Matthew Allum <breakfast@10.am>
 
-This requires >= Python2.0 with the xml librarys installed.
+Introduction
+-------------
+Jabber is an Open Source project to provide an XML based cross platform
+instant messaging solution. 
 
-If you are running debian as root;
+For information about the Jabber project visit http://www.jabber.org.
 
-apt-get install python2-base
-apt-get install python2-xmlbase
+'jabberpy' is a Python library to allow the easy creation of Python
+programs, such as clients,  that use the Jabber Instant Messaging 
+protocol. Its sourceforge url is;
 
-You can run test_simple from untared directory or if you have distutils 
-installed , as root, execute  
+  http://sourceforge.net/projects/jabberpy  
 
-python2 setup.py install
+Whats Needed
+------------- 
+You need python >=2.0 with the expat modules installed. You can check
+for the expat modules by opening up a Python shell ( make sure it 
+reports at least version 2 ) and enter 'import parsers.xml.expat' . 
+If you get an error you need to install the python expat libs... 
 
-to install in your proper lib directorys.
+To do this;
 
-I dont think the test_client will run on windows ( uses select on a filehandle) but I think the libs should .......?
+For Debian users;
+
+You need the python2-base package installed, then as root;
+
+apt-get install python2-xml
+
+From Python source (Un*x);
+
+Before compiling Python, have a look at the file Modules/Setup in the
+distrubution directory. At the bottom of the file you'll find some 
+instructions for installing the expat modules, follow them !
+
+For Windows Users;
+
+AFAIK the windows Python Binary ( from python.org ) comes with expat 
+support included. If you are using windows see the 'notes' section at
+the bottom of this readme.  
+
+Installation
+-------------
+From the untared distrubution directory; As root run;
+
+python setup.py install
+
+Alternatively just copy XMLStream.py and Jabber.py to somewhere in your
+PYTHON_PATH. 
+
+The included test_client.py script is a simple command line Jabber 
+client written using the library. This client will also run strait from
+the untarred distrubution directory.
+
+Documentaion
+-------------
+Unfortunatly little documentation exists currently. I suggest having
+a look at the jabber protocol docs ( from jabber.org ) and the source
+code for test_client.py     
+
+Notes
+------
+<> The library should run fine on windows. Unfortunatly the test 
+   client will not as it 'selects' on a file handle and 
+   windows does not support this. If anyone knows a workaround
+   for this please inform me.
+
+<> The library currently supports most of the 'base' Jabber protocol
+   - messages, presences and iq's. With 'helper' functions for 
+     authentication, rosters, registration etc.
+
+<> A Mailing list for the development of the jabberpy project is 
+   available at;
+
+      http://lists.sourceforge.net/lists/listinfo/jabberpy-devel
+
+
+
+
 

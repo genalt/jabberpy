@@ -1,4 +1,6 @@
 #!/usr/bin/env python2  
+# You may need to change the above line to point at
+# python rather than python2 depending on your os/distro
 import Jabber, XMLStream
 import socket
 from select import select
@@ -8,6 +10,7 @@ import sys
 True = 1
 False = 0
 
+# Change this to 0 if you dont want a color xterm
 USE_COLOR = 1
 
 Who = ''
@@ -31,6 +34,12 @@ def doCmd(con,txt):
             to = cmd[1]
             type = cmd[2]
             con.send(Jabber.Presence(to, type))
+        elif cmd[0] == '/subscribe':
+            to = cmd[1]
+            con.send(Jabber.Presence(to, 'subscribe'))
+        elif cmd[0] == '/unsubscribe':
+            to = cmd[1]
+            con.send(Jabber.Presence(to, 'unsubscribe'))
         elif cmd[0] == '/roster':
             con.requestRoster()
             _roster = con.getRoster()
@@ -53,15 +62,16 @@ def doCmd(con,txt):
             con.disconnect()
             print colorize("Bye!",'red')
             sys.exit(0)
-
         elif cmd[0] == '/help':
             print "commands are:"
             print "   /select <jabberid>"
             print "      - selects who to send messages to"
+            print "   /subscribe <jid>"
+            print "      - subscribe to jid's presence"
+            print "   /unsubscribe <jid>"
+            print "      - unsubscribe to jid's presence"
             print "   /presence <jabberid> <type>"
-            print "      - sends a presence to the jabber id"
-            print "        where type one of subscribe, subscribed"
-            print "        unsubscribe, unsubscribed "
+            print "      - sends a presence of <type> type to the jabber id"
             print "   /roster"
             print "      - requests roster from the server and "
             print "        display a basic dump of it."
@@ -80,11 +90,12 @@ def doCmd(con,txt):
             
 
 def messageCB(con, msg):
+    """Called when a message is recieved"""
     if msg.getBody(): ## Dont show blank messages ##
         print colorize('<' + str(msg.getFrom()) + '>', 'green') + ' ' + msg.getBody()
 
 def presenceCB(con, prs):
-
+    """Called when a presence is recieved"""
     who = str(prs.getFrom())
     type = prs.getType()
     if type == None: type = 'available'
@@ -112,15 +123,15 @@ def presenceCB(con, prs):
         print colorize("we are now unsubscribed to %s"  % (who), 'blue')
 
     elif type == 'available':
-        print colorize("%s is available (%s / %s)" % (who, prs.getShow(), prs.getStatus()), 'blue')
-        ##if prs.getShow() != 'dnd':
-        ##    should_send = 1
-
+        print colorize("%s is available (%s / %s)" % (who, prs.getShow(), prs.getStatus()),
+                       'blue')
     elif type == 'unavailable':
-        print colorize("%s is unavailable (%s / %s)" % (who, prs.getShow(), prs.getStatus()), 'blue')
+        print colorize("%s is unavailable (%s / %s)" % (who, prs.getShow(), prs.getStatus()),
+                       'blue')
 
 
 def iqCB(con,iq):
+    """Called when an iq is recieved, we just let the library handle it at the moment"""
     pass
 
 def colorize(txt, col):
@@ -156,6 +167,7 @@ con.setPresenceHandler(presenceCB)
 con.setIqHandler(iqCB)
 
 if len(sys.argv) == 2:
+    # Set up a jabber account
     con.requestRegInfo()
     req = con.getRegInfo()
     print req[u'instructions']
@@ -175,7 +187,7 @@ else:
 
 print colorize("Attempting to log in...", 'red')
 
-## should be try around this ?
+
 if con.auth(Username,Password,Resource):
     print colorize("Logged in as %s to server %s" % ( Username, Server), 'red')
 else:
