@@ -718,7 +718,7 @@ class Client(Connection):
             elif i.getName()=='feature': features.append(i.getAttr('var'))
         return identities, features
 
-    def browseAgent(self,jid,node=None):
+    def browseAgents(self,jid,node=None):
         identities, features, items = [], [], []
         iq=Iq(to=jid,type='get',query=NS_BROWSE)
         rep=self.SendAndWaitForResponse(iq)
