@@ -432,10 +432,13 @@ class Client(Connection):
         self.send(Presence(type='unavailable'))
         xmlstream.Client.disconnect(self)
 
-    def sendPresence(self,type=None,priority=None,show=None,status=None):
+    def sendPresence(self,type=None,priority=None,show=None,status=None,signedStatus=None):
         """Sends a presence protocol element to the server.
            Used to inform the server that you are online"""
-        self.send(Presence(type=type,priority=priority,show=show,status=status))
+        presence = Presence(type=type,priority=priority,show=show,status=status)
+        if signedStatus:
+            presence.setX(NS_XSIGNED).insertData(signedStatus)
+        self.send(presence)
 
     sendInitPresence=sendPresence
 
