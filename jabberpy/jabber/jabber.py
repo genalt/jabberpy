@@ -275,7 +275,7 @@ class Connection(xmlstream.Client):
         typns=typ+ns
         if not self.handlers[name].has_key(ns): ns=''
         if not self.handlers[name].has_key(typ): typ=''
-        if not self.handlers[name].has_key(typns): typns=''
+        if typ and ns and not self.handlers[name].has_key(typns): typns=''
 
         chain=[]
         for key in ['default',typ,ns,typns]: # we will use all handlers: from very common to very particular
