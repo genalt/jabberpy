@@ -1,5 +1,6 @@
-#!/usr/bin/env python2 || /usr/bin/env python 
-import Jabber 
+#!/usr/bin/env python2  
+import Jabber, XMLStream
+import socket
 from select import select
 from string import split,strip
 import sys
@@ -12,8 +13,8 @@ Who = ''
 def usage():
     print "%s: a simple python jabber clinet " % sys.argv[0]
     print "usage:"
-    print "%s <server> - connect to <server> and register"
-    print "%s <server> <username> <password> <resource>"
+    print "%s <server> - connect to <server> and register" % sys.argv[0]
+    print "%s server> <username> <password> <resource>"    % sys.argv[0]
     print "            - connect to server and login   "
     sys.exit(0)
 
@@ -74,8 +75,16 @@ Username = ''
 Password = ''
 Resource = 'default'
 
+
 con = Jabber.Connection(host=Server,debug=False)
-con.connect()
+try:
+    con.connect()
+except XMLStream.error, e:
+    print "Couldn't connect: %s" % e 
+    sys.exit(0)
+else:
+    print "Connected"
+
 con.setMessageHandler(messageCB)
 con.setPresenceHandler(presenceCB)
 con.setIqHandler(iqCB)
@@ -101,6 +110,7 @@ else:
 
 print "Attempting to log in..."
 
+## should be try around this ?
 if con.auth(Username,Password,Resource):
     print "Logged in as %s to server %s" % ( Username, Server )
     print "Type /help for help"

@@ -29,7 +29,7 @@ class Connection(XMLStream.Client):
             type = None
             frm  = root_node.attrs['from']
             to   = root_node.attrs['to']
-            if root_node.has_key('type'): type = root_node.attrs['type']
+            if root_node.attrs.has_key('type'): type = root_node.attrs['type']
             body = ''
             for n in root_node.kids:
                 if n.tag == 'body':

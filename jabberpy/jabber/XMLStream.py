@@ -1,11 +1,27 @@
+# XML stream library for clients and servers
+# implemented in Python.
+
+"""\
+Documentation will be here
+
+
+"""
 import xmllib, time, sys
-from socket import *
+#from socket import socket
+import socket
 from select import select
 from string import split,find,replace
 import xml.parsers.expat
 
 False = 0;
 True  = 1;
+
+class error:
+    def __init__(self, value):
+        self.value = str(value)
+    def __str__(self):
+        return self.value
+    
 
 class XMLStreamNode:
     def __init__(self,tag='',attrs={}, parent=None, data=''):
@@ -40,12 +56,12 @@ class Client:
             print "DEBUG: %s" % txt
 
     def connect(self):
-        self.__sock = socket(AF_INET, SOCK_STREAM)
+        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.__sock.connect((self._host, self._port))
-        except error, e:			  
-            print "couldn't connect - doh"
-            sys.exit(0)
+        except socket.error, e:			  
+            raise error(e)
+            return 0
         self.DEBUG("connected")
         str = u"<?xml version='1.0' ?>                \
                <stream:stream to='%s' xmlns='%s'                      \
@@ -111,11 +127,13 @@ class Client:
     
     def write(self,data_out=''):
         self.DEBUG("sending %s" % data_out)
-        self.log(data_out, '-->')
         self.__sock.send (data_out)
+        self.log(data_out, '-->')
         
     def process(self,timeout):
          ready_for_read, ready_for_write, err = select([self.__sock],[self.__sock],[],timeout)
+         if err:
+             self.DEBUG("select returned an err")
          for s in ready_for_read:
              if s == self.__sock:
                  self.read()
@@ -127,6 +145,9 @@ class Client:
         self.__sock.close()
         self.__sock = None
         
+    def disconnected(self): ## To be overidden ##
+        pass
+
     def XMLescape(self,txt):
         replace(txt, "&", "&amp;")
         replace(txt, "<", "&lt;")
