@@ -28,7 +28,7 @@ def usage():
     print "%s: a simple python jabber client " % sys.argv[0]
     print "usage:"
     print "%s <server> - connect to <server> and register" % sys.argv[0]
-    print "%s server> <username> <password> <resource>"    % sys.argv[0]
+    print "%s <server> <username> <password> <resource>"    % sys.argv[0]
     print "            - connect to server and login   "
     sys.exit(0)
 
