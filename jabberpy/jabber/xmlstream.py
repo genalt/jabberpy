@@ -349,7 +349,9 @@ class Stream(NodeBuilder):
         except: received = ''
 
         while select([self._reader],[],[],0)[0]:
-            received += self._read(BLOCK_SIZE)
+            add = self._read(BLOCK_SIZE)
+            received +=add
+            if not add: break
 
         if len(received): # length of 0 means disconnect
             self.DEBUG("got data " + received , DBG_XML_RAW )
