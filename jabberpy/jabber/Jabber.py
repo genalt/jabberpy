@@ -4,6 +4,9 @@ from string import split,find,replace
 False = 0;
 True  = 1;
 
+def getAnID():
+    ## need to figure out how to set static data ?
+    pass
 
 class Connection(XMLStream.Client):
     def __init__(self, host, port=5222, debug=True, log=False):
@@ -15,11 +18,18 @@ class Connection(XMLStream.Client):
         self._agents = {}
         self._reg_info = {}
         self._reg_agent = ''
+
+        self._id = 0;
         
         self.lastErr = ''
         self.lastErrCode = 0
 
         XMLStream.Client.__init__(self, host, port, 'jabber:client', debug, log)
+
+    def getAnID(self):
+        self._id = self._id + 1
+        return self._id
+    
 
     def dispatch(self, root_node ):
         self.DEBUG("dispatch called")
@@ -28,70 +38,32 @@ class Connection(XMLStream.Client):
             self.DEBUG("got message dispatch")
             
             msg_obj = Message(node=root_node)
-            self.DEBUG(msg_obj.__str__())
-            self.DEBUG(msg_obj.getBody())
-            self.DEBUG(msg_obj.getTo())
             self.messageHandler(msg_obj)
             
         elif root_node.name == 'presence':
             self.DEBUG("got presence dispatch")
-            id     = None
-            show   = None
-            status = None
-            priority = None
-            type = None
-            to = ''
-            
-            frm  = root_node.attrs['from']
-        ##    to   = root_node.attrs[root_node.namespace+' to']
-            if root_node.attrs.has_key('id'):
-                id   = root_node.attrs['id']
-            else:
-                id = None
-            if root_node.attrs.has_key('type'):
-                type = root_node.attrs['type']
-            for n in root_node.kids:
-                if n.name == 'show':
-                    show = n.data
-                if n.name == 'status':
-                    status = n.data
-                if n.name == 'priority':
-                    priority = int(n.data)
-                if n.name == 'x': ## ToDO ##
-                    pass
 
-            pres_obj = Presence(to, type)
-            pres_obj.setFrom(frm)
-            if id: pres_obj.setID(id)
-            if show: pres_obj.setShow(show)
-            if status: pres_obj.setStatus(status)
-            if priority: pres_obj.setPriority(priority)
+            pres_obj = Presence(node=root_node)
             self.presenceHandler(pres_obj)
 
             
         elif root_node.name == 'iq':
             ## Check for an error
             self.DEBUG("got an iq");
-            iq_obj = Iq()
-            if root_node.attrs.has_key('to'):
-                iq_obj.setTo(root_node.attrs['to'])
-            if root_node.attrs.has_key('type'):
-                iq_obj.setType(root_node.attrs['type'])
-            if root_node.attrs.has_key('from'):
-                iq_obj.setFrom(root_node.attrs['from'])
-            if root_node.attrs.has_key('id'):
-                iq_obj.setID(root_node.attrs['id'])
-            if root_node.kids:
-                iq_obj.setKids(root_node.kids)
+            iq_obj = Iq(node=root_node)
             
             if root_node.attrs['type'] == 'error':
                 for n in root_node.kids:
-                    if n.tag == 'error':
+                    if n.name == 'error':
                         self.lastErr = n.data
                         self.lastErrCode = n.attrs['code']
 
+
+            #
+            # TODO: change all below code to use node methods
+            #
             for n in root_node.kids:
-                if n.tag == 'query':
+                if n.name == 'query':
                     ## Build roster ###
                     if n.namespace == 'jabber:iq:roster' \
                        and root_node.attrs['type'] == 'result':
@@ -122,7 +94,7 @@ class Connection(XMLStream.Client):
                             for item in n.kids:
                                 data = None
                                 if item.data: data = item.data
-                                self._reg_info[item.tag] = data
+                                self._reg_info[item.name] = data
                         else:
                             self.DEBUG("print type is %s" % root_node.attrs['type'])
 
@@ -131,21 +103,19 @@ class Connection(XMLStream.Client):
                             self.DEBUG("got agents result")
                             self._agents = {}
                             for agent in n.kids:
-                                if agent.tag == 'agent': ## hmmm
+                                if agent.name == 'agent': ## hmmm
                                     self._agents[agent.attrs['jid']] = {}
                                     for info in agent.kids:
                                         data = None
                                         if info.data: data = info.data
-                                        self._agents[agent.attrs['jid']][info.tag] = data
-                        
-
+                                        self._agents[agent.attrs['jid']][info.name] = data
                     else:
                         pass
                     
             self.iqHandler(iq_obj)
             
         else:
-            self.DEBUG("whats a tag -> " + root_node.tag)
+            self.DEBUG("whats a tag -> " + root_node.name)
 
     
     def auth(self,username,passwd,resource):
@@ -245,6 +215,30 @@ class Protocol:
     def __str__(self):
         return self._node.__str__()
 
+    def getTo(self):
+        try: return self._node.getAttr('to')
+        except: return None
+        
+    def getFrom(self):
+        try: return self._node.getAttr('from')
+        except: return None
+
+    def getType(self):
+        try: return self._node.getAttr('type')
+        except: return None
+
+    def getID(self):
+        try: return self._node.getAttr('id')
+        except: return None
+
+    def setTo(self,val): self._node.putAttr('to', val)
+
+    def setFrom(self,val): self._node.putAttr('from', val)
+
+    def setType(self,val): self._node.putAttr('type', val)
+
+    def setID(self,val): self._node.putAttr('id', val)
+
 
 class Message(Protocol):
     def __init__(self, to='', body='', node=None):
@@ -256,14 +250,6 @@ class Message(Protocol):
         if to: self.setTo(to)
         if body: self.setBody(body)
         
-    def getTo(self):
-        try: return self._node.getAttr('to')
-        except: return None
-        
-    def getFrom(self):
-        try: return self._node.getAttr('from')
-        except: return None
-
     def getBody(self):
         body = self._node.getTag('body')
         try: return self._node.getTag('body').data
@@ -278,30 +264,23 @@ class Message(Protocol):
         except: return None
 
     def getThread(self):
-        pass
+        try: return self._node.getTag('thread').data
+        except: return None
+        
     def getError(self):
         pass
     def getErrorCode(self):
         pass
     def getTimestamp(self):
         pass
-    def getID(self):
-        pass
-
-    def setTo(self,val): self._node.putAttr('to', val)
-
-    def setFrom(self,val): self._node.putAttr('from', val)
 
     def setBody(self,val):
         body = self._node.getTag('body')
         if body:
             body.putData(val)
         else:
-            body = self._node.insertTag('body')
-            body.putData(val)
+            body = self._node.insertTag('body').putData(val)
             
-    def setType(self,val): self._node.putAttr('type', val)
-    
     def setSubject(self,val):
         subj = self._node.getTag('subject')
         if subj:
@@ -313,132 +292,82 @@ class Message(Protocol):
     def setError(self,val): pass
     def setErrorCode(self,val): pass
     def setTimestamp(self,val): pass
-    def setID(self,val): pass
+
     
     def build_reply(self, reply_txt=''):
         return Message(to=self.getFrom(), body=reply_txt)
 
 
 
-##class Message:
-##    def __init__(self, to='', body=''):
-##        ##self.frm = 'mallum@jabber.com'
-##        self._to         = to
-##        self._body       = body
-##        self._frm       = None
-##        self._type       = None
-##        self._subject    = None
-##        self._thread     = None
-##        self._error      = None
-##        self._error_code = None
-##        self._timestamp  = None
-##        self._id         = None
-##        
-##    def getTo(self): return self._to
-##    def getFrom(self): return self._frm
-##    def getBody(self): return self._body
-##    def getType(self): return self._type
-##    def getSubject(self): return self._subject
-##    def getThread(self): return self._thread
-##    def getError(self): return self._error
-##    def getErrorCode(self): return self._error_code
-##    def getTimestamp(self): return self._timestamp
-##    def getID(self): return self._id
-##
-##    def setTo(self,val): self._to = val
-##    def setFrom(self,val): self._frm = val
-##    def setBody(self,val): self._body = val
-##    def setType(self,val): self._type = val ## TODO: Define constants 
-##    def setSubject(self,val): self._subject = val
-##    def setThread(self,val): self._thread = val
-##    def setError(self,val): self._error = val
-##    def setErrorCode(self,val): self._error_code = val
-##    def setTimestamp(self,val): self._timestamp = val
-##    def setID(self,val): self._id = val
-##    
-##    def as_xml(self):
-##        s = "<message "
-##        if self._to:   s=s + "to='%s' " % self._to
-##        if self._type: s=s + "type='%s' " % self._type
-##        s=s + ">"
-##        if self._subject: s=s + "<subject>%s</subject>" % self._subject
-##        if self._body:    s=s + "<body>%s</body>" % self._body
-##        s=s + "</message>"
-##        return s
-##
-##    def build_reply(self, reply_txt=''):
-##        return Message(self._frm, reply_txt)
-##
-class Presence:
-    def __init__(self, to='', type=None):
-        self._to = to
-        self._frm = None
-        self._type = type
-        self._status = None
-        self._show   = None
-        self._priority = None
-        self._id       = None
+class Presence(Protocol):
+    def __init__(self, to=None, type=None, node=None):
+        ##self.frm = 'mallum@jabber.com'
+        if node:
+            self._node = node
+        else:
+            self._node = XMLStream.XMLStreamNode(tag='presence')
+        if to: self.setTo(to)
+        if type: self.setType(type)
+
+
+    def getStatus(self):
+        try: return self._node.getTag('status').getData()
+        except: return None
+
+    def getShow(self):
+        try: return self._node.getTag('show').getData()
+        except: return None
+
+    def getPriority(self):
+        try: return self._node.getTag('priority').getData()
+        except: return None
+    
+    def setShow(self,val):
+        show = self._node.getTag('show')
+        if show:
+            show.putData(val)
+        else:
+            self._node.insertTag('show').putData(val)
+
+    def setStatus(self,val):
+        status = self._node.getTag('status')
+        if status:
+            status.putData(val)
+        else:
+            self._node.insertTag('status').putData(val)
+
+    def setPriority(self,val):
+        pri = self._node.getTag('priority')
+        if pri:
+            pri.putData(val)
+        else:
+            self._node.insertTag('priority').putData(val)
+
+class Iq(Protocol): 
+    def __init__(self, to='', type=None, node=None):
+        if node:
+            self._node = node
+        else:
+            self._node = XMLStream.XMLStreamNode(tag='iq')
+        if to: self.setTo(to)
+        if type: self.setType(type)
         
-    def getTo(self):  return self._to
-    def getFrom(self): return self._frm
-    def getType(self):     return self._type
-    def getStatus(self):   return self._status
-    def getShow(self):     return self._show
-    def getPriority(self): return self._priority
-    def getID(self): return self._id
 
-    def setTo(self,val):       self._to = val
-    def setFrom(self,val):     self._frm = val
-    def setType(self,val):     self._type = val
-    def setStatus(self,val):   self._status = val
-    def setShow(self,val):     self._show = val
-    def setPriority(self,val): self._priority = val
-    def setID(self,val):       self._id = val
+    def getQuery(self):
+        "returns the query namespace"
+        try: return self._node.getTag('query').namespace
+        except: return None
 
-    def as_xml(self):
-        s = "<presence "
-        if self._to:   s=s + "to='%s' " % self._to
-        if self._type: s=s + "type='%s' " % self._type
-        if self._id: s=s + "id='%s' " % self._id
-        s=s + ">"
-        if self._status: s=s + "<status>%s</status>" % self._subject
-        if self._show:   s=s + "<show>%s</show>" % self._body
-        if self._priority:   s=s + "<show>%s</show>" % self._priority
-        s=s + "</presence>"
-        return s
+    def setQuery(self,namespace):   
+        q= self._node.getTag('query')
+        if q:
+            q.namespace = namespace
+        else:
+            self._node.insertTag('query').setNamespace(namespace)
 
-
-class Iq: 
-    def __init__(self, to='', type=None):
-        self._to = to
-        self._frm = None
-        self._type = type
-        self._id   = None
-        self._query = None ## holds query namespace ##
-        self._kids  = None
-        
-    def getTo(self):  return self._to
-    def getFrom(self): return self._frm
-    def getType(self):     return self._type
-    def getID(self): return self._id
-    def getQueryNS(self): return self._query
-
-    def setTo(self,val):       self._to = val
-    def setFrom(self,val):     self._frm = val
-    def setType(self,val):     self._type = val
-    def setID(self,val):       self._id = val
-    def setKids(self,val):     self._kids = val
-    def setQueryNS(self,val):     self._query = val
-    def as_xml(self):
-        s = "<iq "
-        if self._to:   s=s + "to='%s' " % self._to
-        if self._type: s=s + "type='%s' " % self._type
-        if self._id: s=s + "id='%s' " % self._id
-        s=s + ">"
-        if self._query: s=s + "<query xmlns='%s' />" % self._query
-        s=s + "</iq>"
-        return s
-
+    def getQueryNode(self):
+        try: return self._node.getTag('query')
+        except: return None
 
 
 

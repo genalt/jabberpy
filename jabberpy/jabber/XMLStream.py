@@ -28,8 +28,10 @@ class XMLStreamNode:
         bits = split(tag)
         if len(bits) == 1:
             self.name = tag
+            self.namespace = ''
         else:
             self.namespace, self.name = bits
+        print "NAMESPACE: " + self.namespace
         self.attrs = attrs
         self.data = data
         self.kids = []
