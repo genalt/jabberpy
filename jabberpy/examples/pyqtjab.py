@@ -364,7 +364,7 @@ for x in xrange(1, len(sys.argv)):
 con = None
 
 if hostname:
-    con = jabber.Client(host='jabber.org')
+    con = jabber.Client(host=hostname)
     if con:
         try:
             con.connect()
