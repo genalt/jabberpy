@@ -118,15 +118,15 @@ class Node:
         
     def putData(self, data):
         "Set the nodes textual data" 
-        self.data.append(XMLescape(data))
+        self.data.append(data)
 
     def insertData(self, data):
         "Set the nodes textual data" 
-        self.data.append(XMLescape(data))
+        self.data.append(data)
 
     def getData(self):
         "Return the nodes textual data" 
-        return XMLunescape(join(self.data))
+        return self.data
 
     def getDataAsParts(self):
         "Return the node data as an array" 

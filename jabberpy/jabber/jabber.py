@@ -1085,7 +1085,7 @@ class JID:
             if find(jid, '@') == -1:
                 self.node = ''
             else:
-                bits = split(jid, '@')
+                bits = split(jid, '@',1)
                 self.node = bits[0]
                 jid = bits[1]
                 
@@ -1093,10 +1093,9 @@ class JID:
                 self.domain = jid
                 self.resource = ''
             else:
-                self.domain, self.resource = split(jid, '/') 
-                slash_ind = find(jid, '/')
-                self.domain = jid[:slash_ind]
-                self.resource = jid[(slash_ind + 1):]
+                self.domain, self.resource = split(jid, '/',1) 
+                self.domain = jid[0]
+                self.resource = jid[1]
         else:
             self.node = node
             self.domain = domain
