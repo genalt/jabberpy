@@ -10,14 +10,15 @@ except:
         sys.exit(1)
     print "You appear not to have the Python distutils modules"
     print "installed. Setup cannot continue."
-    print "You can manually install jabber.py by copying jabber.py"
-    print "and xmlstream.py to your /python-libdir/site-packages"
+    print "You can manually install jabberpy by coping the jabber"
+    print "directory to your /python-libdir/site-packages"    
     print "directory."
     sys.exit(1)
     
 setup(name="jabber.py",
       version="0.3-1",
-      py_modules=["xmlstream","jabber"],
+      #py_modules=["xmlstream","jabber"],
+      packages=["jabber"],
       description="Python xmlstream and jabber IM protocol libs",
       author="Matthew Allum",
       author_email="breakfast@10.am",
