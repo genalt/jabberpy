@@ -275,10 +275,11 @@ class Connection(xmlstream.Client):
         except: ns=''
         self.DEBUG("dispatch called for: name->%s ns->%s"%(name,ns),DBG_DISPATCH)
 
-        typns=typ+ns
+        if typ and ns: typns=typ+ns
+        else: typns=''
         if not self.handlers[name].has_key(ns): ns=''
         if not self.handlers[name].has_key(typ): typ=''
-        if typ and ns and not self.handlers[name].has_key(typns): typns=''
+        if not self.handlers[name].has_key(typns): typns=''
 
         chain=[]
         for key in ['default',typ,ns,typns]: # we will use all handlers: from very common to very particular
