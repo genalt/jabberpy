@@ -943,7 +943,7 @@ class Iq(Protocol):
         try: return self._node.getTag('query')
         except: return None
 
-    def setQueryNode(self):
+    def setQueryNode(self, val):
         """Sets textual data contained by the query tag"""
         q = self._node.getTag('query')
         if q:

@@ -30,12 +30,14 @@ case.
 
 # $Id$
 
-import xmllib, time, sys, re, site, socket
+import site
+site.encoding = 'UTF-8'
+import time, sys, re, socket
 from select import select
 from string import split,find,replace,join
 import xml.parsers.expat
 
-VERSION = 0.2
+VERSION = 0.3
 
 False = 0
 True  = 1
@@ -44,13 +46,11 @@ TCP     = 1
 STDIO   = 0
 TCP_SSL = 2
 
-ENCODING = site.encoding  ## fallback encoding to avoid random
-                          ## random UnicodeError: ASCII decoding error:
-                          ##                      ordinal not in range(128)
-                          ## type errors - being looked into. 
+ENCODING = site.encoding 
 
 BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
                        ## transactions
+
 
 def XMLescape(txt):
     "Escape XML entities"
@@ -131,7 +131,6 @@ class Node:
     def getDataAsParts(self):
         "Return the node data as an array" 
         return self.data
-
 
     def getNamespace(self):
         "Returns the nodes namespace." 
