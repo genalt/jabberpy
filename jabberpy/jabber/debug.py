@@ -90,6 +90,7 @@ class Debug:
                   #      sufix = chr(27) + "[37;1m\n"
                   prefix = 'DEBUG: ', 
                   sufix = '\n',
+                  encoding = None,
                   ):
         # firtst prepare output
         if log_file:
@@ -107,6 +108,7 @@ class Debug:
         self.flag_show = None # see below for explanation...
         self.prefix = prefix
         self.sufix = sufix
+        self.encoding = encoding
         
         if not active_flags:
             self.active = []
@@ -156,16 +158,15 @@ class Debug:
                 suf = self.sufix
             if self.flag_show:
                 msg = "%s%s%s" % (flag, self.flag_show, msg )
+            if type(msg)==type(u'') and self.encoding:
+                msg=msg.encode(self.encoding,'replace')
             try:
                 self._fh.write("%s%s%s" % ( pre, msg, suf ))
             except:
                 # unicode strikes again ;)
                 s=u''
-                for i in range(len(msg)):
-                    if ord(msg[i]) < 128:
-                        c = msg[i]
-                    else:
-                        c = '?'
+                for c in msg:
+                    if ord(c) >= 128: c = '?'
                     s=s+c
                 self._fh.write("%s%s%s" % ( pre, s, suf ))
             self._fh.flush()
