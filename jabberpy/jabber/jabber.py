@@ -800,32 +800,26 @@ class Protocol(xmlstream.Node):
         self.putAttr('id', val)
 
 
-    def getX(self,index=None):
+    def getX(self,index=0):
         """Returns the x namespace, optionally passed an index if there are
            multiple tags."""
-        ## TODO make it work for multiple x nodes
-        # jaclu 021231 commented out .namespace to get timestamps working
-        try: return self.getTag('x') #.namespace
+        try: return self.getXNodes('x')[index].namespace
         except: return None
 
 
-    def setX(self,namespace,index=None):
+    def setX(self,namespace,index=0):
         """Sets the name space of the x tag. It also creates the node
            if it doesn't already exist."""
-        ## TODO make it work for multiple x nodes
-        x = self.getTag('x')
-        if x:
-            x.namespace = namespace
-        else:
-            x = self.insertTag('x')
-            x.setNamespace(namespace)
+        x = self.getTag('x',index)
+        if not x: x = self.insertTag('x')
+        x.setNamespace(namespace)
         return x
 
 
-    def setXPayload(self, payload):
+    def setXPayload(self, payload, namespace=''):
         """Sets the Child of an 'x' tag. Can be a Node instance or an
            XML document"""
-        x = self.insertTag('x')
+        x = self.setX(namespace)
 
         if type(payload) == type('') or type(payload) == type(u''):
                 payload = xmlstream.NodeBuilder(payload).getDom()
