@@ -43,6 +43,18 @@ NS_XHTML      = "http://www.w3.org/1999/xhtml"
 NS_XDBGINSERT = "jabber:xdb:ginsert"
 NS_XDBNSLIST  = "jabber:xdb:nslist"
 
+## Possible constants for Roster class .... hmmm ##
+RS_SUB_BOTH    = 0
+RS_SUB_FROM    = 1
+RS_SUB_TO      = 2
+
+RS_ASK_SUBSCRIBE   = 1
+RS_ASK_UNSUBSCRIBE = 0
+
+RS_EXT_ONLINE   = 2
+RS_EXT_OFFLINE  = 1
+RS_EXT_PENDING  = 0
+
 
 class Connection(XMLStream.Client):
     
@@ -122,7 +134,8 @@ class Connection(XMLStream.Client):
                             if sub == 'remove':
                                 self._roster._remove(jid)
                             else:
-                                self._roster._set(jid=jid,name=name,sub=sub,ask=ask)
+                                self._roster._set(jid=jid,name=name,
+                                                  sub=sub,ask=ask)
                         else:
                             self.DEBUG("roster - jid not defined ?")
                         
@@ -140,8 +153,8 @@ class Connection(XMLStream.Client):
                             if agent.getName() == 'agent': ## hmmm
                                 self._agents[agent.getAttr('jid')] = {}
                                 for info in agent.getChildren():
-                                    self._agents[agent.getAttr('jid')][info.getName()] \
-                                         = info.getData()
+                                    self._agents[agent.getAttr('jid')]\
+                                         [info.getName()] = info.getData()
                 else:
                     pass
                 
@@ -511,33 +524,43 @@ class Iq(Protocol):
 class Roster:
     def __init__(self):
         self._data = {}
-    
+        ## unused for now ... ##
+        self._lut = { 'both':RS_SUB_BOTH,
+                      'from':RS_SUB_FROM,
+                      'to':RS_SUB_TO }
+
     def getStatus(self, jid): ## extended
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['status']
         return None
 
     def getShow(self, jid):   ## extended
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['show']
         return None
 
-    def getOnline(self,jid):  ## extended 
+    def getOnline(self,jid):  ## extended
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['online']
         return None
     
     def getSub(self,jid):
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['sub']
         return None
 
     def getName(self,jid):
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['name']
         return None
 
     def getAsk(self,jid):
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['ask']
         return None
@@ -551,46 +574,60 @@ class Roster:
         print "hello", to_ret
         return to_ret
 
+    def getJIDs(self):
+        to_ret = [];
+        for jid in self._data.keys():
+            to_ret.append(JID(jid))
+        return to_ret
+
     def getRaw(self):
         return self._data
+
+    def isOnline(self,jid):
+        jid = str(jid)
+        if self.getOnline(jid) != 'online':
+            return False
+        else:
+            return True
     
     def _set(self,jid,name,sub,ask): # meant to be called by actual iq tag
         jid = str(jid) # just in case
+        online = 'offline'
+        if ask: online = 'pending' ## DJ - should this be To? ##
         if self._data.has_key(jid): # update it
             self._data[jid]['name'] = name
             self._data[jid]['ask'] = ask
             self._data[jid]['sub'] = sub
         else:
             self._data[jid] = { 'name': name, 'ask': ask, 'sub': sub,
-                                'online': '?', 'status': None, 'show': None} 
+                                'online': online, 'status': None, 'show': None} 
 
     def _setOnline(self,jid,val):
+        jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['online'] = val
         else:                      ## fall back 
             jid_basic = JID(jid).getBasic()
             if self._data.has_key(jid_basic):
-                ## maybe this should be set to list of resources ?
-                print "----> %s %s" % ( jid_basic, val )
                 self._data[jid_basic]['online'] = val
 
     def _setShow(self,jid,val):
+        jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['show'] = val 
         else:                      ## fall back 
             jid_basic = JID(jid).getBasic()
             if self._data.has_key(jid_basic):
-                ## maybe this should be set to list of online resources ? 
                 self._data[jid_basic]['show'] = val
 
 
     def _setStatus(self,jid,val):
+        jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['status'] = val
         else:                      ## fall back 
             jid_basic = JID(jid).getBasic()
             if self._data.has_key(jid_basic):
-                ## maybe this should be set to list of online resources ? 
                 self._data[jid_basic]['status'] = val
 
 

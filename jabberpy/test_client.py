@@ -33,9 +33,13 @@ def doCmd(con,txt):
             con.send(Jabber.Presence(to, type))
         elif cmd[0] == '/roster':
             con.requestRoster()
-            roster_simple = con.getRoster().getSummary()
-            for jid in roster_simple.keys():
-                print colorize("%s :: %s" % ( jid, roster_simple[jid] ) , 'blue' )
+            _roster = con.getRoster()
+            for jid in _roster.getJIDs():
+                print colorize("%s :: %s (%s/%s)" 
+                               % ( jid, _roster.getOnline(jid),
+                                   _roster.getStatus(jid),
+                                   _roster.getShow(jid),
+                                   ) , 'blue' )
 
         elif cmd[0] == '/agents':
             print con.requestAgents()
@@ -63,6 +67,8 @@ def doCmd(con,txt):
             print "        display a basic dump of it."
             print "   /exit"
             print "      - exit cleanly"
+        else:
+            print colorize("uh?", 'red')
     else:
         if Who != '':
             msg = Jabber.Message(Who, strip(txt))
@@ -136,7 +142,7 @@ Password = ''
 Resource = 'default'
 
 
-con = Jabber.Connection(host=Server,debug=False ,log=sys.stderr)
+con = Jabber.Connection(host=Server,debug=False ,log=False) #log=sys.stderr)
 try:
     con.connect()
 except XMLStream.error, e:
@@ -172,7 +178,6 @@ print colorize("Attempting to log in...", 'red')
 ## should be try around this ?
 if con.auth(Username,Password,Resource):
     print colorize("Logged in as %s to server %s" % ( Username, Server), 'red')
-    print colorize("Type /help for help", 'red')
 else:
     print "eek -> ", con.lastErr, con.lastErrCode
     sys.exit(1)
@@ -181,6 +186,7 @@ print colorize("Requesting Roster Info" , 'red')
 con.requestRoster()
 con.sendInitPresence()
 print colorize("Ok, ready" , 'red')
+print colorize("Type /help for help", 'red')
 
 JID = Username + '@' + Server + '/' + Resource
 
