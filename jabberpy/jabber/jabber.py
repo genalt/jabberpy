@@ -616,11 +616,13 @@ class Client(Connection):
     def requestRegInfo(self,agent=''):
         """Requests registration info from the server.
            Returns the Iq object received from the server."""
-        if agent: agent = agent + '.'
+        if agent.find('.') == -1:
+            if agent: agent += '.'
+            agent += self._host
         self._reg_info = {}
-        reg_iq = Iq(type='get', to = agent + self._host)
+        reg_iq = Iq(type='get', to = agent)
         reg_iq.setQuery(NS_REGISTER)
-        self.DEBUG("Requesting reg info from %s%s:" % (agent, self._host), DBG_NODE_IQ)
+        self.DEBUG("Requesting reg info from %s:" % agent, DBG_NODE_IQ)
         self.DEBUG(ustr(reg_iq),DBG_NODE_IQ)
         return self.SendAndWaitForResponse(reg_iq)
 
@@ -639,32 +641,34 @@ class Client(Connection):
         self._reg_info[key] = val
 
 
-    def sendRegInfo(self, agent=None):
+    def sendRegInfo(self, agent=''):
         """Sends the populated registration dictionary back to the server"""
-        if agent: agent = agent + '.'
-        if agent is None: agent = ''
-        reg_iq = Iq(to = agent + self._host, type='set')
+        if agent.find('.') == -1:
+            if agent: agent += '.'
+            agent += self._host
+        reg_iq = Iq(to = agent, type='set')
         q = reg_iq.setQuery(NS_REGISTER)
         for info in self._reg_info.keys():
             q.insertTag(info).putData(self._reg_info[info])
         return self.SendAndWaitForResponse(reg_iq)
 
 
-    def deregister(self, agent=None):
+    def deregister(self, agent=''):
         """ Send off a request to deregister with the server or with the given
             agent.  Returns True if successful, else False.
 
             Note that you must be authorised before attempting to deregister.
         """
         if agent:
-            agent = agent + '.'
-            self.send(Presence(to=agent+self._host,type='unsubscribed'))       # This is enough f.e. for icqv7t or jit
-        if agent is None: agent = ''
+            if agent.find('.') == -1:
+                agent += '.' + self._host
+            self.send(Presence(to=agent,type='unsubscribed'))       # This is enough f.e. for icqv7t or jit
+        else: agent = self._host
         q = self.requestRegInfo()
         kids = q.getQueryPayload()
         keyTag = kids.getTag("key")
 
-        iq = Iq(to=agent+self._host, type="set")
+        iq = Iq(to=agent, type="set")
         iq.setQuery(NS_REGISTER)
         iq.setQueryNode("")
         q = iq.getQueryNode()
