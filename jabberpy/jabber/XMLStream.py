@@ -2,7 +2,7 @@
 # implemented in Python.
 
 """\
-Documentation will be here
+TODO: Documentation will be here
 
 
 """
@@ -223,17 +223,17 @@ class Client:
                 break
             data_in = self.__sock.recv(1024)
         self.DEBUG("got data %s" % data )
-        self.log(data, '<--')
+        self.log(data, 'RECV:')
         self._parser.Parse(data)
         return data
     
     def write(self,data_out=''):
         self.DEBUG("sending %s" % data_out)
         self.__sock.send (data_out)
-        self.log(data_out, '-->')
+        self.log(data_out, 'SENT:')
         
     def process(self,timeout):
-         ready_for_read, ready_for_write, err = select([self.__sock],[self.__sock],[],timeout)
+         ready_for_read, ready_for_write, err = select([self.__sock],[],[],timeout)
          if err:
              self.DEBUG("select returned an err")
          for s in ready_for_read:
@@ -243,6 +243,7 @@ class Client:
          return False
 
     def disconnect(self):
+        time.sleep(1) ## sleep for a second - server bug ? ##        
         self.write ( "</stream:stream>" )
         self.__sock.close()
         self.__sock = None
@@ -261,6 +262,8 @@ class Client:
 
 class Server:    
     pass ## muhahahahah
+
+
 
 
 

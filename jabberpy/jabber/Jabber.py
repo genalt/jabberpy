@@ -1,3 +1,8 @@
+"""\
+TODO: Documentation will be here
+
+
+"""
 import XMLStream
 import sha
 from string import split,find,replace
@@ -5,10 +10,42 @@ from string import split,find,replace
 False = 0;
 True  = 1;
 
+NS_CLIENT     = "jabber:client"
+NS_SERVER     = "jabber:server"
+NS_AUTH       = "jabber:iq:auth"
+NS_REGISTER   = "jabber:iq:register"
+NS_ROSTER     = "jabber:iq:roster"
+NS_OFFLINE    = "jabber:x:offline"
+NS_AGENT      = "jabber:iq:agent"
+NS_AGENTS     = "jabber:iq:agents"
+NS_DELAY      = "jabber:x:delay"
+NS_VERSION    = "jabber:iq:version"
+NS_TIME       = "jabber:iq:time"
+NS_VCARD      = "vcard-temp"
+NS_PRIVATE    = "jabber:iq:private"
+NS_SEARCH     = "jabber:iq:search"
+NS_OOB        = "jabber:iq:oob"
+NS_XOOB       = "jabber:x:oob"
+NS_ADMIN      = "jabber:iq:admin"
+NS_FILTER     = "jabber:iq:filter"
+NS_AUTH_0K    = "jabber:iq:auth:0k"
+NS_BROWSE     = "jabber:iq:browse"
+NS_EVENT      = "jabber:x:event"
+NS_CONFERENCE = "jabber:iq:conference"
+NS_SIGNED     = "jabber:x:signed"
+NS_ENCRYPTED  = "jabber:x:encrypted"
+NS_GATEWAY    = "jabber:iq:gateway"
+NS_LAST       = "jabber:iq:last"
+NS_ENVELOPE   = "jabber:x:envelope"
+NS_EXPIRE     = "jabber:x:expire"
+NS_XHTML      = "http://www.w3.org/1999/xhtml"
+NS_XDBGINSERT = "jabber:xdb:ginsert"
+NS_XDBNSLIST  = "jabber:xdb:nslist"
+
 
 class Connection(XMLStream.Client):
     
-    def __init__(self, host, port=5222, debug=True, log=False):
+    def __init__(self, host, port=5222, debug=False, log=False):
 
         self.msg_hdlr  = None
         self.pres_hdlr = None
@@ -33,12 +70,17 @@ class Connection(XMLStream.Client):
         return str(self._id)
     
 
+    def disconnect(self):
+        self.send(Presence(type='unavailable'));
+        XMLStream.Client.disconnect(self)
+    
+
     def dispatch(self, root_node ):
 
         self.DEBUG("dispatch called")
         
         if root_node.name == 'message':
-
+    
             self.DEBUG("got message dispatch")
             msg_obj = Message(node=root_node)
             self.messageHandler(msg_obj) 
@@ -57,6 +99,8 @@ class Connection(XMLStream.Client):
             queryNS = iq_obj.getQuery()
 
             if queryNS and root_node.attrs['type'] == 'result':
+
+                ## !! TODO: use namepace constants + proper xmlnode methods !! ##
 
                 if queryNS == 'jabber:iq:roster': 
 
@@ -289,7 +333,6 @@ class Protocol:
 
 class Message(Protocol):
     def __init__(self, to=None, body=None, node=None):
-        ##self.frm = 'mallum@jabber.com'
         if node:
             self._node = node
         else:
@@ -460,8 +503,26 @@ class Iq(Protocol):
             self._node.insertTag('query').putData(val)
 
 
+class JID: ## !! TODO: integrate into rest of lib ? !! ##
+    def __init__(self, jid=None, name=None, server=None, resource='default'):
+        if jid:
+            try:
+                bits = split(jid, '@')
+                self.name = bits[0]
+                if find(bits[1], '/') == -1:
+                    self.server = bits[1]
+                    self.resource = 'default'
+                else:
+                    self.server, self.resource = split(bits[1], '/') 
+            except:
+                return None
+        else:
+            self.name = name
+            self.server = server
+            self.resource = resource
 
-
+    def __str__(self):
+        return self.name + '@' + self.server + '/' + self.resource 
 
 
 
