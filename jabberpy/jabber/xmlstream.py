@@ -388,12 +388,12 @@ class Stream:
 
         if self._connection == TCP_SSL:
             data_in = data_in + \
-              unicode(self._sslObj.recv(BLOCK_SIZE),'utf-8').encode(ENCODING,'replace')
+              unicode(self._sslObj.read(BLOCK_SIZE),'utf-8').encode(ENCODING,'replace')
             while data_in:
                 data = data + data_in
                 if len(data_in) != BLOCK_SIZE:
                     break
-                data_in = unicode(self._sslObj.recv(BLOCK_SIZE),'utf-8').encode(ENCODING, 'replace')
+                data_in = unicode(self._sslObj.read(BLOCK_SIZE),'utf-8').encode(ENCODING, 'replace')
 
         elif self._connection == STDIO:
             ## Hope this dont buffer !
@@ -437,7 +437,7 @@ class Stream:
         if self._connection == TCP: 
             reader = self._sock
         elif self._connection == TCP_SSL:
-            reader = self._sslObj
+            reader = self._sock
         elif self._connection == STDIO:
             reader = sys.stdin
         else:
