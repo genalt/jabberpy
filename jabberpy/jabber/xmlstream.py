@@ -141,7 +141,10 @@ class Node:
         self.namespace = namespace
 
     def insertTag(self, name):
-        "Add a child tag of name 'name' to the node"
+        """ Add a child tag of name 'name' to the node.
+
+	    Returns the newly created node.
+	"""
         newnode = Node(tag=name, parent=self)
         self.kids.append(newnode)
         return newnode
@@ -295,7 +298,14 @@ class Stream:
                 self._logFH = log
         else:
             self._logFH = None
-        
+        self._timestampLog = True
+
+    def timestampLog(self,timestamp):
+	""" Enable or disable the showing of a timestamp in the log.
+	    By default, timestamping is enabled.
+	"""
+	self._timestampLog = timestamp
+
     def DEBUG(self,txt):
         if self._debug:
             sys.stderr.write("DEBUG: %s\n" % txt)
@@ -432,7 +442,7 @@ class Stream:
             reader = sys.stdin
         else:
             pass
-        
+
         ready_for_read,ready_for_write,err = \
                         select( [reader],[],[],timeout)
         for s in ready_for_read:
@@ -461,9 +471,12 @@ class Stream:
         """Logs data to the specified filehandle. Data is time stamped
         and prefixed with inout"""
         if self._logFH is not None:
-            self._logFH.write("%s - %s - %s\n" %           
-            (time.asctime(time.localtime(time.time())), inout, data ) )
-        
+	    if self._timestampLog:
+		self._logFH.write("%s - %s - %s\n" %
+		(time.asctime(time.localtime(time.time())), inout, data ) )
+	    else:
+		self._logFH.write("%s - %s\n" % (inout, data ) )
+
     def getIncomingID(self):
         """Returns the streams ID"""
         return self._incomingID
@@ -576,18 +589,4 @@ class Server:
             if s.getSocket() == sock:
                 return s
         return None
-    
-                    
-                            
-            
-        
-
-
-
-
-
-
-
-
-
 

@@ -275,7 +275,13 @@ class Connection(xmlstream.Client):
 
         
     def setDisconnectHandler(self, func):
-        """Set the callback for a disconnect"""
+        """Set the callback for a disconnect.
+	   The given function will be called with a single parameter (the
+	   connection object) when the connection is broken unexpectedly (eg,
+	   in response to sending badly formed XML).  self.lastErr and
+	   self.lastErrCode will be set to the error which caused the
+	   disconnection, if any.
+	"""
         self.disconnect_hdlr = func
 
 
@@ -488,12 +494,18 @@ class Client(Connection):
                         name = item.getAttr('name')
                         sub  = item.getAttr('subscription')
                         ask  = item.getAttr('ask')
+
+			groups = []
+			for group in item.getTags("group"):
+			    groups.append(group.getData())
+
                         if jid:
                             if sub == 'remove' or sub == 'none':
                                 self._roster._remove(jid)
                             else:
-                                self._roster._set(jid=jid,name=name,
-                                                  sub=sub,ask=ask)
+                                self._roster._set(jid=jid, name=name,
+						  groups=groups, sub=sub,
+						  ask=ask)
                         else:
                             self.DEBUG("roster - jid not defined ?")
                         
@@ -602,6 +614,30 @@ class Client(Connection):
         """Returns the current Roster() class instance. Does
 	   not contact the server."""
         return self._roster
+
+
+    def addRosterItem(self, jid):
+	""" Send off a request to subscribe to the given jid.
+	"""
+	self.send(Presence(to=jid, type="subscribe"))
+
+
+    def updateRosterItem(self, jid, name=None, groups=None):
+	""" Update the information stored in the roster about a roster item.
+
+	    'jid' is the Jabber ID of the roster entry; 'name' is the value to
+	    set the entry's name to, and 'groups' is a list of groups to which
+	    this roster entry can belong.  If either 'name' or 'groups' is not
+	    specified, that value is not updated in the roster.
+	"""
+	iq = Iq(type='set')
+	item = iq.setQuery('jabber:iq:roster').insertTag('item')
+	item.putAtrr('jid', str(jid))
+	if name != None: item.putAtrr('name', name)
+	if groups != None:
+	    for group in groups:
+		item.insertTag('group').insertData(group)
+	dummy = self.sendAndWaitForResponse(iq) # Do we need to wait??
 
 
     def removeRosterItem(self,jid):
@@ -1060,7 +1096,8 @@ class Iq(Protocol):
 
     def setQuery(self,namespace):
         """Sets a query's namespace, and inserts a query tag if
-           one doesn't already exist."""
+           one doesn't already exist.  The resulting query tag
+	   is returned as the function result."""
         q = self._node.getTag('query')
         if q:
             q.namespace = namespace
@@ -1115,10 +1152,48 @@ class Roster:
        item availability."""
     def __init__(self):
         self._data = {}
+	self._listener = None
         ## unused for now ... ##
         self._lut = { 'both':RS_SUB_BOTH,
                       'from':RS_SUB_FROM,
                       'to':RS_SUB_TO }
+
+
+    def setListener(self, listener):
+	""" Set a listener function to be called whenever the roster changes.
+
+	    The given function will be called whenever the contents of the
+	    roster changes in response to a received <presence> or <iq> packet.
+	    The listener function should be defined as follows:
+
+		def listener(action, jid, info)
+
+	    'action' is a string indicating what type of change has occurred:
+
+		"add"     A new item has been added to the roster.
+		"update"  An existing roster item has been updated.
+		"remove"  A roster entry has been removed.
+
+	    'jid' is the Jabber ID (as a string) of the affected roster entry.
+
+	    'info' is a dictionary containing the information that has been
+	    added or updated for this roster entry.  This dictionary may
+	    contain any combination of the following:
+
+		"name"    The associated name of this roster entry.
+		"groups"  A list of groups associated with this roster entry.
+		"online"  The roster entry's "online" value ("online",
+			  "offline" or "pending").
+		"sub"     The roster entry's subscription value ("none",
+			  "from", "to" or "both").
+		"ask"     The roster entry's ask value, if any (None,
+			  "subscribe", "unsubscribe").
+		"show"    The roster entry's show value, if any (None, "away",
+			  "chat", "dnd", "normal", "xa").
+		"status"  The roster entry's current 'status' value, if
+			  specified.
+	"""
+	self._listener = listener
 
 
     def getStatus(self, jid): ## extended
@@ -1163,6 +1238,15 @@ class Roster:
         return None
 
 
+    def getGroups(self,jid):
+	""" Returns the lsit of groups associated with the given roster item.
+	"""
+	jid = str(jid)
+	if self._data.has_key(jid):
+	    return self._data[jid]['groups']
+	return None
+
+
     def getAsk(self,jid):
         """Returns the 'ask' status for a Roster item with the given jid."""
         jid = str(jid) 
@@ -1203,19 +1287,30 @@ class Roster:
         else:
             return True
 
-    
-    def _set(self,jid,name,sub,ask): # meant to be called by actual iq tag
+
+    def _set(self,jid,name,groups,sub,ask):
+	# meant to be called by actual iq tag
         """Used internally - private"""
         jid = str(jid) # just in case
         online = 'offline'
         if ask: online = 'pending'
         if self._data.has_key(jid): # update it
             self._data[jid]['name'] = name
+	    self._data[jid]['groups'] = groups
             self._data[jid]['ask'] = ask
             self._data[jid]['sub'] = sub
+	    if self._listener != None:
+		self._listener("update", jid, {'name' : name,
+					       'groups' : groups,
+					       'sub' : sub, 'ask' : ask})
         else:
-            self._data[jid] = { 'name': name, 'ask': ask, 'sub': sub,
-                                'online': online, 'status': None, 'show': None} 
+            self._data[jid] = { 'name': name, 'groups' : groups, 'ask': ask,
+				'sub': sub, 'online': online, 'status': None,
+				'show': None}
+	    if self._listener != None:
+		self._listener("add", jid, {'name' : name, 'groups' : groups,
+					    'sub' : sub, 'ask' : ask,
+					    'online' : online})
 
 
     def _setOnline(self,jid,val):
@@ -1223,10 +1318,14 @@ class Roster:
         jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['online'] = val
+	    if self._listener != None:
+		self._listener("update", jid, {'online' : val})
         else:                      ## fall back 
             jid_basic = JID(jid).getStripped()
             if self._data.has_key(jid_basic):
                 self._data[jid_basic]['online'] = val
+		if self._listener != None:
+		    self._listener("update", jid_basic, {'online' : val})
 
 
     def _setShow(self,jid,val):
@@ -1234,10 +1333,14 @@ class Roster:
         jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['show'] = val 
+	    if self._listener != None:
+		self._listener("update", jid, {'show' : val})
         else:                      ## fall back 
             jid_basic = JID(jid).getStripped()
             if self._data.has_key(jid_basic):
                 self._data[jid_basic]['show'] = val
+		if self._listener != None:
+		    self._listener("update", jid_basic, {'show' : val})
 
 
     def _setStatus(self,jid,val):
@@ -1245,15 +1348,22 @@ class Roster:
         jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['status'] = val
+	    if self._listener != None:
+		self._listener("update", jid, {'status' : val})
         else:                      ## fall back 
             jid_basic = JID(jid).getStripped()
             if self._data.has_key(jid_basic):
                 self._data[jid_basic]['status'] = val
+		if self._listener != None:
+		    self._listener("update", jid_basic, {'status' : val})
 
 
     def _remove(self,jid):
         """Used internally - private"""
-        if self._data.has_key(jid): del self._data[jid]
+        if self._data.has_key(jid):
+	    del self._data[jid]
+	    if self._listener != None:
+		self._listener("remove", jid, {})
 
 #############################################################################
 
@@ -1415,4 +1525,5 @@ class Log(Protocol):
 
 class Server:
     pass
+
 
