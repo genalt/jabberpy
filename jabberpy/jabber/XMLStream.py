@@ -16,6 +16,19 @@ import xml.parsers.expat
 False = 0;
 True  = 1;
 
+def XMLescape(txt):
+    replace(txt, "&", "&amp;")
+    replace(txt, "<", "&lt;")
+    replace(txt, ">", "&gt;")
+    return txt
+
+def XMLunescape(txt):
+    replace(txt, "&amp;", "&")
+    replace(txt, "&lt;", "<")
+    replace(txt, "&gt;", ">")
+    return txt
+
+
 class error:
     def __init__(self, value):
         self.value = str(value)
@@ -91,8 +104,8 @@ class XMLStreamNode:
             s = s + " xmlns = '%s' " % self.namespace
         for key in self.attrs.keys():
             val = str(self.attrs[key])
-            s = s + " %s='%s'" % ( key, val )
-        s = s + ">" + self.data
+            s = s + " %s='%s'" % ( key, XMLescape(val) )
+        s = s + ">" + XMLescape(self.data)
         if self.kids != None:
             for a in self.kids:
                 s = s + a._xmlnode2str()
@@ -110,7 +123,7 @@ class XMLStreamNode:
 
 
 class Client:
-    def __init__(self, host, port, namespace, debug=True, log=False):
+    def __init__(self, host, port, namespace, debug=True, log=None):
         self._parser = xml.parsers.expat.ParserCreate(namespace_separator = ' ')
         self._parser.StartElementHandler  = self.unknown_starttag
         self._parser.EndElementHandler    = self.unknown_endtag
@@ -125,12 +138,23 @@ class Client:
         self._streamID = None
         
         self._debug = debug
-        self._doLog = log
-        self._logData   = ''
+
+        if log:
+            if type(log) is type(""):
+                try:
+                    self._logFH = open(log,'w')
+                except:
+                    print "ERROR: can open %s for writing"
+                    sys.exit(0)
+            else: ## assume its a stream type object
+                self._logFH = log
+        else:
+            self._logFH = None
+        
         
     def DEBUG(self,txt):
         if self._debug:
-            print "DEBUG: %s" % txt
+            sys.stderr.write("DEBUG: %s\n" % txt)
 
     def connect(self):
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -226,31 +250,12 @@ class Client:
     def disconnected(self): ## To be overidden ##
         pass
 
-    def XMLescape(self,txt):
-        replace(txt, "&", "&amp;")
-        replace(txt, "<", "&lt;")
-        replace(txt, ">", "&gt;")
-        return txt
-
-    def XMLunescape(self,txt):
-        replace(txt, "&amp;", "&")
-        replace(txt, "&lt;", "<")
-        replace(txt, "&gt;", ">")
-        return txt
-
-    def clearLog(self):
-        self._logData = ''
 
     def log(self, data, inout):
-        if self._doLog:
-            self._logData = self._logData + \
-               "%s - %s - %s" %           \
-            (time.asctime(time.localtime(time.time())), \
-             inout, data )
+        if self._logFH is not None:
+            self._logFH.write("%s - %s - %s\n" %           
+            (time.asctime(time.localtime(time.time())), inout, data ) )
         
-    def getLog(self):
-        return self._logData
-
     def getStreamID(self):
         return self._streamID
 

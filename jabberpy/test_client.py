@@ -78,7 +78,7 @@ Password = ''
 Resource = 'default'
 
 
-con = Jabber.Connection(host=Server,debug=True)
+con = Jabber.Connection(host=Server,debug=False,log=sys.stderr)
 try:
     con.connect()
 except XMLStream.error, e:

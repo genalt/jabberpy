@@ -9,6 +9,7 @@ True  = 1;
 class Connection(XMLStream.Client):
     
     def __init__(self, host, port=5222, debug=True, log=False):
+
         self.msg_hdlr  = None
         self.pres_hdlr = None
         self.iq_hdlr   = None
@@ -27,46 +28,38 @@ class Connection(XMLStream.Client):
         XMLStream.Client.__init__(self, host, port, 'jabber:client', debug, log)
 
     def getAnID(self):
+
         self._id = self._id + 1
         return str(self._id)
     
 
     def dispatch(self, root_node ):
+
         self.DEBUG("dispatch called")
         
         if root_node.name == 'message':
+
             self.DEBUG("got message dispatch")
-            
             msg_obj = Message(node=root_node)
             self.messageHandler(msg_obj) 
             
         elif root_node.name == 'presence':
-            self.DEBUG("got presence dispatch")
 
+            self.DEBUG("got presence dispatch")
             pres_obj = Presence(node=root_node)
             self.presenceHandler(pres_obj)
 
             
         elif root_node.name == 'iq':
-            ## Check for an error
+
             self.DEBUG("got an iq");
             iq_obj = Iq(node=root_node)
-
-            
-##            if root_node.attrs['type'] == 'error':
-##                for n in root_node.kids:
-##                    if n.name == 'error':
-##                        self.lastErr = n.data
-##                        self.lastErrCode = n.attrs['code']
-##
-
-            #
-            # TODO: change all below code to use node methods
-            #
             queryNS = iq_obj.getQuery()
+
             if queryNS and root_node.attrs['type'] == 'result':
-                    ## Build roster ###
+
                 if queryNS == 'jabber:iq:roster': 
+
                     self._roster = {}
                     for item in iq_obj.getQueryNode().kids:
                         jid = None
@@ -89,6 +82,7 @@ class Connection(XMLStream.Client):
                     self.DEBUG("roster => %s" % self._roster)
                         
                 elif queryNS == 'jabber:iq:register':
+
                         self._reg_info = {}
                         for item in iq_obj.getQueryNode().kids:
                             data = None
@@ -96,6 +90,7 @@ class Connection(XMLStream.Client):
                             self._reg_info[item.name] = data
                     
                 elif queryNS == 'jabber:iq:agents':
+
                         self.DEBUG("got agents result")
                         self._agents = {}
                         for agent in iq_obj.getQueryNode().kids:
@@ -136,7 +131,7 @@ class Connection(XMLStream.Client):
         if ID is None :
             ID = obj.getID()
             if ID is None:
-                ID = getAnID()
+                ID = self.getAnID()
                 obj.setID(ID)
         ID = str(ID)
         self.send(obj)
@@ -163,24 +158,22 @@ class Connection(XMLStream.Client):
         if auth_ret_query.getTag('token'):
             
             token = auth_ret_query.getTag('token').getData()
-            seq = int(auth_ret_query.getTag('sequence').getData())
+            seq = auth_ret_query.getTag('sequence').getData()
             self.DEBUG("zero-k authentication supported")
-            hash = sha.new(passwd).hexdigest()
-            hash = sha.new(hash+token).hexdigest()
-            for nout in seq: hash = sha.new(hash).hexdigest()
+            hash = sha.new(sha.new(passwd).hexdigest()+token).hexdigest()
+            for foo in seq: hash = sha.new(hash).hexdigest()
             q.insertTag('hash').insertData(hash)
 
         elif auth_ret_query.getTag('digest'):
+
             self.DEBUG("digest authentication supported")
             digest = q.insertTag('digest')
             digest.insertData(sha.new(
                 self.getStreamID() + passwd).hexdigest() )
         else:
+            self.DEBUG("plain text authentication supported")
             q.insertTag('password').insertData(passwd)
             
-        self.DEBUG("sending %s" % ( str ) )
-
-
         iq_result = self.SendAndWaitForResponse(auth_set_iq)
         if iq_result.getError() is None:
             return True
@@ -189,47 +182,57 @@ class Connection(XMLStream.Client):
            self.lastErrCode = iq_result.getErrorCode()
            return False
 
-        ## TODO: imporve !!!!!!!!!
-        if iq_result.getError:     
-            return True
-        else:
-            return False
-
     def requestRoster(self):
-        id = self.getAnID()
+        self._roster = {}
         rost_iq = Iq(type='get')
         rost_iq.setQuery('jabber:iq:roster')
-        rost_iq.setID(id)
-        self.send(rost_iq)
-        self._roster = {}
-        self.waitForResponse(id)
+        self.SendAndWaitForResponse(rost_iq)
         self.DEBUG("got roster response")
         self.DEBUG("roster -> %s" % str(self._agents))
         return self._roster
         
     def requestRegInfo(self,agent=''):
         if agent: agent = agent + '.'
-        id = self.getAnID()
+        self._reg_info = {}
         reg_iq = Iq(type='get', to = agent + self._host)
         reg_iq.setQuery('jabber:iq:register')
-        reg_iq.setID(id)
-        self.send(reg_iq)
-        self._reg_info = {}
-        self.waitForResponse(id)
         self.DEBUG("got reg response")
         self.DEBUG("roster -> %s" % str(self._agents))
+        return self.SendAndWaitForResponse(reg_iq)
         
     def send(self, what):
          XMLStream.Client.write(self,str(what))
-##         if type(what) is type("") or type(what) is type(u""): ## Is it a string ?
-##             XMLStream.Client.write(self,what)
-##         else:       ## better add if isinstance(what, protocol_superclass) ..?
-##             XMLStream.Client.write(self,str(what))
-##
+
     def sendInitPresence(self):
         p = Presence()
         print p
         self.send(p);
+
+    def getRoster(self):
+        return self._roster
+
+    def getRegInfo(self):
+        return self._reg_info
+
+    def setRegInfo(self,key,val):
+        self._reg_info[key] = val
+
+    def sendRegInfo(self, agent=''):
+        if agent: agent = agent + '.'
+        reg_iq = Iq(to = agent + self._host, type='set')
+        q = reg_iq.setQuery('jabber:iq:register')
+        for info in self._reg_info.keys():
+            q.insertTag(info).putData(self._reg_info[info])
+        return self.SendAndWaitForResponse(reg_iq)
+
+    def requestAgents(self):
+        self._agents = {}
+        agents_iq = Iq(type='get')
+        agents_iq.setQuery('jabber:iq:agents')
+        self.SendAndWaitForResponse(agents_iq)
+        self.DEBUG("got agents response")
+        self.DEBUG("agents -> %s" % str(self._agents))
+        return self._agents
 
     def setMessageHandler(self, func):
         self.msg_hdlr = func
@@ -240,57 +243,15 @@ class Connection(XMLStream.Client):
     def setIqHandler(self, func):
         self.iq_hdlr = func
 
-    def getRoster(self):
-        return self._roster
-        # send request
-        # do read
-        # return internal roster hash
-
-    def getRegInfo(self):
-        return self._reg_info
-
-    def setRegInfo(self,key,val):
-        self._reg_info[key] = val
-
-    def sendRegInfo(self, agent=''):
-        if agent: agent = agent + '.'
-        iq_reg = Iq(to = agent + self._host, type='set')
-        q = iq_reg.setQuery('jabber:iq:register')
-        print q
-        for info in self._reg_info.keys():
-            q.insertTag(info).putData(self._reg_info[info])
-        self.send(iq_reg)
-        ## TODO: wait on an ID here
-
-    def requestAgents(self):
-        id = self.getAnID()
-        agents_iq = Iq(type='get')
-        agents_iq.setQuery('jabber:iq:agents')
-        agents_iq.setID(id)
-        self.send(agents_iq)
-        self._agents = {}
-        self.waitForResponse(id)
-        self.DEBUG("got agents response")
-        self.DEBUG("agents -> %s" % str(self._agents))
-        return self._agents
-
-    def messageHandler(self, msg_obj): ## Overide If You Want ##
+    def messageHandler(self, msg_obj):   ## Overide If You Want ##
         if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
         
     def presenceHandler(self, pres_obj): ## Overide If You Want ##
         if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
 
-    def iqHandler(self, iq_obj): ## Overide If You Want ##
+    def iqHandler(self, iq_obj):         ## Overide If You Want ##
         if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
 
-
-#
-# TODO:
-# all the below structures should really just define there 'top level' tag.
-# Tags inside this should really be an XMLStream Node as a .kids attr ?
-# 
-# The Iq object currently does this. Need to think more obout it
-#
 
 class Protocol:
     def __init__(self):
@@ -396,7 +357,6 @@ class Message(Protocol):
 
     def setTimestamp(self,val): pass
 
-    
     def build_reply(self, reply_txt=''):
         m = Message(to=self.getFrom(), body=reply_txt)
         t = self.getThread()
