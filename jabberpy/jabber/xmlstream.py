@@ -30,8 +30,6 @@ case.
 
 # $Id$
 
-import site
-site.encoding = 'UTF-8'
 import time, sys, re, socket
 from select import select
 from string import split,find,replace,join
@@ -49,7 +47,7 @@ TCP     = 1
 STDIO   = 0
 TCP_SSL = 2
 
-ENCODING = site.encoding 
+ENCODING = 'utf-8'      # Though it is uncommon, this is the only right setting.
 ustr = str
 
 BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
@@ -199,7 +197,7 @@ class Node:
                 s = s + a._xmlnode2str(parent=self)
                 cnt=cnt+1
         if (len(self.data)-1) >= cnt: s = s + XMLescape(self.data[cnt])
-        if not self.kids() and s[-1:]=='>':
+        if not self.kids and s[-1:]=='>':
             s=s[:-1]+' />'
         else:
             s = s + "</" + self.name + ">"
@@ -308,7 +306,7 @@ class Stream(NodeBuilder):
         self._incomingID = None
         self._outgoingID = id
 
-        self._debug = _debug.Debug(debug)
+        self._debug = _debug.Debug(debug,encoding=ENCODING)
         self.DEBUG = self._debug.show # makes it backwards compatible with v0.4 code
 
         self.DEBUG("stream init called",DBG_INIT)
@@ -348,7 +346,7 @@ class Stream(NodeBuilder):
 
     def write(self,raw_data):
         """Writes raw outgoing data. Blocks until done.
-           If supplied data is not unicode string, xmlstream.ENCODING
+           If supplied data is not unicode string, ENCODING
            is used for convertion. Avoid this!
            Always send your data as a unicode string."""
         if type(raw_data) == type(''):
@@ -374,7 +372,7 @@ class Stream(NodeBuilder):
 
     def disconnect(self):
         """Close the stream and socket"""
-        self.write ( "</stream:stream>" )
+        self.write ( u"</stream:stream>" )
         self._sock.close()
         self._sock = None
         
