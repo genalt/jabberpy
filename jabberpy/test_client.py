@@ -71,7 +71,8 @@ def doCmd(con,txt):
             
 
 def messageCB(con, msg):
-    print colorize('<' + str(msg.getFrom()) + '>', 'green') + ' ' + msg.getBody()
+    if msg.getBody(): ## Dont show blank messages ##
+        print colorize('<' + str(msg.getFrom()) + '>', 'green') + ' ' + msg.getBody()
 
 def presenceCB(con, prs):
 
@@ -132,7 +133,7 @@ Password = ''
 Resource = 'default'
 
 
-con = Jabber.Connection(host=Server,debug=False) ## ,log=sys.stderr)
+con = Jabber.Connection(host=Server,debug=False ,log=sys.stderr)
 try:
     con.connect()
 except XMLStream.error, e:
