@@ -125,6 +125,7 @@ NS_XEXPIRE    = "jabber:x:expire" # JEP-0023
 NS_XENCRYPTED = "jabber:x:encrypted" # JEP-0027
 NS_XSIGNED    = "jabber:x:signed" # JEP-0027
 NS_P_MUC      = _NS_PROTOCOL + "/muc" # JEP-0045
+NS_P_MUC_ADMIN = NS_P_MUC + "#admin" # JEP-0045
 NS_VCARD      = "vcard-temp" # JEP-0054
 
 
@@ -1015,6 +1016,42 @@ class Presence(Protocol):
         """Returns the presence priority"""
         try: return self.getTag('priority').getData()
         except: return None
+
+    def _muc_getItemAttr(self,tag,attr):
+        for xtag in self.getTags('x'):
+            for child in xtag.getTags(tag):
+                return child.getAttr(attr)
+
+    def _muc_getSubTagDataAttr(self,tag,attr):
+        for xtag in self.getTags('x'):
+            for child in xtag.getTags('item'):
+                for cchild in child.getTags(tag):
+                    return cchild.getData(),cchild.getAttr(attr)
+        return None,None
+
+    def getRole(self):
+        """Returns the presence role (for groupchat)"""
+        return self._muc_getItemAttr('item','role')
+
+    def getAffiliation(self):
+        """Returns the presence affiliation (for groupchat)"""
+        return self._muc_getItemAttr('item','affiliation')
+
+    def getJid(self):
+        """Returns the presence jid (for groupchat)"""
+        return self._muc_getItemAttr('item','jid')
+
+    def getReason(self):
+        """Returns the reason of the presence (for groupchat)"""
+        return self._muc_getSubTagDataAttr('reason','')[0]
+
+    def getActor(self):
+        """Returns the reason of the presence (for groupchat)"""
+        return self._muc_getSubTagDataAttr('actor','jid')[1]
+
+    def getStatusCode(self):
+        """Returns the status code of the presence (for groupchat)"""
+        return self._muc_getItemAttr('status','code')
 
     def setShow(self,val):
         """Sets the presence show"""
