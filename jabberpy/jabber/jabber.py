@@ -215,6 +215,21 @@ class Connection(xmlstream.Client):
         self.lastErr = ''
         self.lastErrCode = 0
 
+    def setMessageHandler(self, func, type='', chainOutput=False):
+        """Back compartibility method"""
+        print "WARNING! setMessageHandler(...) method is obsolette, use registerHandler('message',...) instead."
+        return registerHandler('message', func, type, chained=chainOutput)
+
+    def setPresenceHandler(self, func, type='', chainOutput=False):
+        """Back compartibility method"""
+        print "WARNING! setPresenceHandler(...) method is obsolette, use registerHandler('presence',...) instead."
+        return registerHandler('presence', func, type, chained=chainOutput)
+
+    def setIqHandler(self, func, type='', ns=''):
+        """Back compartibility method"""
+        print "WARNING! setIqHandler(...) method is obsolette, use registerHandler('iq',...) instead."
+        return registerHandler('iq', func, type, ns, chained=chainOutput)
+
     def header(self):    
         self.DEBUG("stream: sending initial header",DBG_INIT)
         str = u"<?xml version='1.0' encoding='UTF-8' ?>   \
@@ -416,7 +431,7 @@ class Client(Connection):
         while self.process(): pass
         xmlstream.Client.disconnect(self)
 
-    def sendPresence(self,type='available',priority='0',show='online',status=None):
+    def sendPresence(self,type=None,priority=None,show=None,status=None):
         """Sends a presence protocol element to the server.
            Used to inform the server that you are online"""
         self.send(Presence(type=type,priority=priority,show=show,status=status))
@@ -709,8 +724,13 @@ class Protocol(xmlstream.Node):
             if to: attrs['to']=to
             if frm: attrs['from']=frm
             if type: attrs['type']=type
+        self._node=self
         xmlstream.Node.__init__(self, tag=name, attrs=attrs, payload=payload, node=node)
 
+    def asNode(self):
+        """Back compartibility method"""
+        print 'WARNING! "asNode()" method is obsolette, use Protocol object as Node object instead.'
+        return self
 
     def getError(self):
         """Returns the error string, if any"""
