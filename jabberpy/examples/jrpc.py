@@ -10,13 +10,16 @@ For more info on this technique see http://www.pipetree.com/jabber/jrpc.html
 mallum <breakfast@10.am>
 """
 
-## Import Jabber modules
+# $Id$
+
+import sys
+
+## Import Jabber module
 import Jabber
-import XMLStream
 
 ## Import xmlrpclib - http://www.pythonware.com/products/xmlrpc/index.htm 
 import xmlrpclib
-import sys
+
 
 ## This is called when an Iq is recieved 
 def iqCB(con,iq):
@@ -47,7 +50,7 @@ con = Jabber.Connection(host=Server,log=sys.stderr)
 ## Try and connect
 try:
     con.connect()
-except XMLStream.error, e:
+except:
     print "Couldn't connect: %s" % e
     sys.exit(0)
 else:

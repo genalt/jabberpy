@@ -1,7 +1,10 @@
-#!/usr/bin/env python2  
+#!/usr/bin/env python2
+
+# $Id$
+
 # You may need to change the above line to point at
 # python rather than python2 depending on your os/distro
-import Jabber, XMLStream
+import Jabber
 import socket
 from select import select
 from string import split,strip
@@ -156,7 +159,7 @@ Resource = 'default'
 con = Jabber.Connection(host=Server,debug=False ,log=False) #log=sys.stderr)
 try:
     con.connect()
-except XMLStream.error, e:
+except:
     print "Couldn't connect: %s" % e
     sys.exit(0)
 else:

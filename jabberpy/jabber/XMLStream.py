@@ -6,6 +6,9 @@ TODO: Documentation will be here
 
 
 """
+
+# $Id$
+
 import xmllib, time, sys
 #from socket import socket
 import socket

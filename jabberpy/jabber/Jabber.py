@@ -1,9 +1,10 @@
 """\
 TODO: Documentation will be here
 
-IDEA! write a google bot an an example !
-
 """
+
+# $Id$
+
 import XMLStream
 import sha
 from string import split,find,replace
@@ -86,6 +87,13 @@ class Connection(XMLStream.Client):
         self.send(Presence(type='unavailable'));
         XMLStream.Client.disconnect(self)
 
+    def connect(self):
+        try:
+            XMLStream.Client.connect(self)
+        except XMLStream.error, e:
+            raise IOError
+        
+            
     def dispatch(self, root_node ):
 
         self.DEBUG("dispatch called")
