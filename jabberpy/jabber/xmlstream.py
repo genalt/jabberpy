@@ -199,12 +199,13 @@ class Node:
             s = s + "</" + self.name + ">"
         return s
 
-    def getTag(self, name):
+    def getTag(self, name, index=None):
         """Returns a child node with tag name. Returns None
         if not found."""
         for node in self.kids:
             if node.getName() == name:
-               return node
+                if not index: return node
+                if index is not None: index-=1
         return None
 
     def getTags(self, name):
