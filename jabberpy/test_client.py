@@ -71,11 +71,11 @@ def doCmd(con,txt):
             
 
 def messageCB(con, msg):
-    print colorize('<' + msg.getFrom() + '>', 'green') + ' ' + msg.getBody()
+    print colorize('<' + str(msg.getFrom()) + '>', 'green') + ' ' + msg.getBody()
 
 def presenceCB(con, prs):
 
-    who = prs.getFrom()
+    who = str(prs.getFrom())
     type = prs.getType()
     if type == None: type = 'available'
 

@@ -215,7 +215,7 @@ class Client:
         self.DEBUG("error " + message)
 
     def read(self):
-        data = ''
+        data = u''
         data_in = self.__sock.recv(1024)
         while data_in:
             data = data + data_in

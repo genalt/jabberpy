@@ -98,52 +98,40 @@ class Connection(XMLStream.Client):
             iq_obj = Iq(node=root_node)
             queryNS = iq_obj.getQuery()
 
-            if queryNS and root_node.attrs['type'] == 'result':
+            if queryNS and root_node.getAttr('type') == 'result':
 
                 ## !! TODO: use namepace constants + proper xmlnode methods !! ##
-
-                if queryNS == 'jabber:iq:roster': 
+                if queryNS == NS_ROSTER: 
 
                     self._roster = {}
-                    for item in iq_obj.getQueryNode().kids:
-                        jid = None
-                        name = None
-                        sub = None
-                        ask = None
-                        if item.attrs.has_key('jid'):
-                            jid = item.attrs['jid']
-                        if item.attrs.has_key('name'):
-                            name = item.attrs['name']
-                        if item.attrs.has_key('subscription'):
-                            sub = item.attrs['subscription']
-                        if item.attrs.has_key('ask'):
-                            ask = item.attrs['ask']
+                    for item in iq_obj.getQueryNode().getChildren():
+                        jid  = item.getAttr('jid')
+                        name = item.getAttr('name')
+                        sub  = item.getAttr('subscription')
+                        ask  = item.getAttr('ask')
                         if jid:
                             self._roster[jid] = \
                             { 'name': name, 'ask': ask, 'subscription': sub }
                         else:
                             self.DEBUG("roster - jid not defined ?")
-                    self.DEBUG("roster => %s" % self._roster)
+                        self.DEBUG("roster => %s" % self._roster)
                         
-                elif queryNS == 'jabber:iq:register':
+                elif queryNS == NS_REGISTER:
 
                         self._reg_info = {}
-                        for item in iq_obj.getQueryNode().kids:
-                            data = None
-                            if item.data: data = item.data
-                            self._reg_info[item.name] = data
+                        for item in iq_obj.getQueryNode().getChildren():
+                            self._reg_info[item.getName()] = item.getData() 
                     
-                elif queryNS == 'jabber:iq:agents':
+                elif queryNS == NS_AGENTS:
 
                         self.DEBUG("got agents result")
                         self._agents = {}
-                        for agent in iq_obj.getQueryNode().kids:
-                            if agent.name == 'agent': ## hmmm
-                                self._agents[agent.attrs['jid']] = {}
-                                for info in agent.kids:
-                                    data = None
-                                    if info.data: data = info.data
-                                self._agents[agent.attrs['jid']][info.name] = data
+                        for agent in iq_obj.getQueryNode().getChildren():
+                            if agent.getName() == 'agent': ## hmmm
+                                self._agents[agent.getAttr('jid')] = {}
+                                for info in agent.getChildren():
+                                    self._agents[agent.getAttr('jid')][info.getName()] \
+                                         = info.getData()
                 else:
                     pass
 
@@ -291,12 +279,13 @@ class Connection(XMLStream.Client):
         
     def presenceHandler(self, pres_obj): ## Overide If You Want ##
         if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
-
+ 
     def iqHandler(self, iq_obj):         ## Overide If You Want ##
         if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
 
 
 class Protocol:
+    "Base class for messages, presences, iqs"
     def __init__(self):
         self._node = None
 
@@ -307,11 +296,13 @@ class Protocol:
         return self._node.__str__()
 
     def getTo(self):
-        try: return self._node.getAttr('to')
+        "Returns a JID object" 
+        try: return JID(self._node.getAttr('to'))
         except: return None
         
     def getFrom(self):
-        try: return self._node.getAttr('from')
+        "Returns a JID object"
+        try: return JID(self._node.getAttr('from'))
         except: return None
 
     def getType(self):
@@ -322,9 +313,9 @@ class Protocol:
         try: return self._node.getAttr('id')
         except: return None
 
-    def setTo(self,val): self._node.putAttr('to', val)
+    def setTo(self,val): self._node.putAttr('to', str(val))
 
-    def setFrom(self,val): self._node.putAttr('from', val)
+    def setFrom(self,val): self._node.putAttr('from', str(val))
 
     def setType(self,val): self._node.putAttr('type', val)
 
@@ -337,7 +328,7 @@ class Message(Protocol):
             self._node = node
         else:
             self._node = XMLStream.XMLStreamNode(tag='message')
-        if to: self.setTo(to)
+        if to: self.setTo(str(to))
         if body: self.setBody(body)
         
     def getBody(self):
@@ -414,7 +405,7 @@ class Presence(Protocol):
             self._node = node
         else:
             self._node = XMLStream.XMLStreamNode(tag='presence')
-        if to: self.setTo(to)
+        if to: self.setTo(str(to))
         if type: self.setType(type)
 
 
@@ -504,30 +495,32 @@ class Iq(Protocol):
 
 
 class JID: ## !! TODO: integrate into rest of lib ? !! ##
-    def __init__(self, jid=None, name=None, server=None, resource='default'):
+    def __init__(self, jid=None, node=None, domain=None, resource='default'):
         if jid:
             try:
                 bits = split(jid, '@')
-                self.name = bits[0]
+                self.node = bits[0]
                 if find(bits[1], '/') == -1:
-                    self.server = bits[1]
+                    self.domain = bits[1]
                     self.resource = 'default'
                 else:
-                    self.server, self.resource = split(bits[1], '/') 
+                    self.domain, self.resource = split(bits[1], '/') 
             except:
                 return None
         else:
-            self.name = name
-            self.server = server
+            self.node = name
+            self.domain = server
             self.resource = resource
 
     def __str__(self):
-        return self.name + '@' + self.server + '/' + self.resource 
+        return self.node + '@' + self.domain + '/' + self.resource 
 
+    def getNode(self): return self.node
+    def getDomain(self): return self.domain
+    def getResource(self): return self.resource
 
-
-
-
-
+    def setNode(self,val): self.node = val
+    def getDomain(self,val): self.domain = val
+    def getResource(self,val): self.resource = val
 
 
