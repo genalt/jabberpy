@@ -30,8 +30,7 @@ case.
 
 # $Id$
 
-import xmllib, time, sys, re, site
-from socket import socket, AF_INET, SOCK_STREAM
+import xmllib, time, sys, re, site, socket
 from select import select
 from string import split,find,replace,join
 import xml.parsers.expat
@@ -41,8 +40,9 @@ VERSION = 0.2
 False = 0
 True  = 1
 
-TCP    = 1
-STDIO  = 0
+TCP     = 1
+STDIO   = 0
+TCP_SSL = 2
 
 ENCODING = site.encoding  ## fallback encoding to avoid random
                           ## random UnicodeError: ASCII decoding error:
@@ -273,6 +273,10 @@ class Stream:
         self.__depth = 0
         self._sock = sock
 
+        self._sslObj    = None
+        self._sslIssuer = None
+        self._sslServer = None
+
         self._incomingID = None
         self._outgoingID = id
         
@@ -373,7 +377,15 @@ class Stream:
                 data_in = unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(
                     ENCODING, 'replace')
 
-                
+        if self._connection == TCP_SSL:
+            data_in = data_in + \
+              unicode(self._sslObj.recv(BLOCK_SIZE),'utf-8').encode(ENCODING,'replace')
+            while data_in:
+                data = data + data_in
+                if len(data_in) != BLOCK_SIZE:
+                    break
+                data_in = unicode(self._sslObj.recv(BLOCK_SIZE),'utf-8').encode(ENCODING, 'replace')
+
         elif self._connection == STDIO:
             ## Hope this dont buffer !
             data_in = data_in + unicode(sys.stdin.read(1024),'utf-8').encode(
@@ -397,6 +409,8 @@ class Stream:
         try:
             if self._connection == TCP:
                 self._sock.send (data_out)
+            elif self._connection == TCP_SSL:
+                self._sslObj.write(data_out)
             elif self._connection == STDIO:
                 self.stdout.write(data_out)
             else:
@@ -468,12 +482,23 @@ class Client(Stream):
 
         if self._connection == STDIO: return
 
-        self._sock = socket(AF_INET, SOCK_STREAM)
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self._sock.connect((self._host, self._port))
         except socket.error, e:			  
             seld.DEBUG("socket error")
             raise error(e)
+
+        if self._connection == TCP_SSL:
+            try:
+                self.DEBUG("Attempting to create ssl socket")
+                self._sslObj    = socket.ssl( self._sock, None, None )
+                self._sslIssuer = self._sslSock.issuer()
+                self._sslServer = self._sslSock.server()
+            except:
+                self.DEBUG("Socket Error: No SSL Support")
+                raise error("No SSL Support")
+
         self.DEBUG("connected")
         self.header()
         return 0

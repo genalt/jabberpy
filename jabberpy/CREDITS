@@ -3,5 +3,7 @@ DJ Adams -
       Lots of help with protocol implentation / Bug fixes 
 Brian Lalor - 
       Bug fixes / IMAP Componet 
+John 'zariok' Draughn -
+      SSL support
 Aaron Wald - 
       pyqt client
