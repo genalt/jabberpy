@@ -321,12 +321,14 @@ class Client(xmlstream.Client):
 
             who = str(pres_obj.getFrom())
             type = pres_obj.getType()
-            if type == 'available' or type == None:
+            self.DEBUG("presence type is %s" % type)
+            if type == 'available' or not type:
+                self.DEBUG("roster setting %s to online" % who)
                 self._roster._setOnline(who,'online')
                 self._roster._setShow(who,pres_obj.getShow())
                 self._roster._setStatus(who,pres_obj.getStatus())
             elif type == 'unavailable':
-                self._roster._setOnline(who,'online')
+                self._roster._setOnline(who,'offline')
                 self._roster._setShow(who,pres_obj.getShow())
                 self._roster._setStatus(who,pres_obj.getStatus())
             else:
@@ -340,9 +342,13 @@ class Client(xmlstream.Client):
             iq_obj = Iq(node=root_node)
             queryNS = iq_obj.getQuery()
 
-            if queryNS and root_node.getAttr('type') == 'result':
+            ## Tidy below up !! ##
+            type = root_node.getAttr('type')
+            
+            if queryNS:
 
-                if queryNS == NS_ROSTER: 
+                if queryNS == NS_ROSTER and ( type == 'result' \
+                                             or type == 'set' ): 
 
                     for item in iq_obj.getQueryNode().getChildren():
                         jid  = item.getAttr('jid')
@@ -350,7 +356,7 @@ class Client(xmlstream.Client):
                         sub  = item.getAttr('subscription')
                         ask  = item.getAttr('ask')
                         if jid:
-                            if sub == 'remove':
+                            if sub == 'remove' or sub == 'none':
                                 self._roster._remove(jid)
                             else:
                                 self._roster._set(jid=jid,name=name,
@@ -358,13 +364,13 @@ class Client(xmlstream.Client):
                         else:
                             self.DEBUG("roster - jid not defined ?")
                         
-                elif queryNS == NS_REGISTER:
+                elif queryNS == NS_REGISTER and type == 'result':
 
                         self._reg_info = {}
                         for item in iq_obj.getQueryNode().getChildren():
                             self._reg_info[item.getName()] = item.getData() 
                     
-                elif queryNS == NS_AGENTS:
+                elif queryNS == NS_AGENTS and type == 'result':
 
                         self.DEBUG("got agents result")
                         self._agents = {}
@@ -374,8 +380,8 @@ class Client(xmlstream.Client):
                                 for info in agent.getChildren():
                                     self._agents[agent.getAttr('jid')]\
                                          [info.getName()] = info.getData()
-                else:
-                    pass
+                else: pass
+
                 
             if root_node.getAttr('id') and \
                self._expected.has_key(root_node.getAttr('id')):
