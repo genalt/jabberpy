@@ -36,6 +36,8 @@ from select import select
 from string import split,find,replace
 import xml.parsers.expat
 
+VERSION = 0.2
+
 False = 0;
 True  = 1;
 

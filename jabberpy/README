@@ -1,17 +1,24 @@
-jabberpy  0.1 README Matthew Allum <breakfast@10.am>
+jabberpy  0.2 README Matthew Allum <breakfast@10.am>
 
 Introduction
 -------------
-Jabber is an Open Source project to provide an XML based cross platform
-instant messaging solution. 
+jabber.py is a Python module for the jabber instant messaging
+protocol. jabber.py deals with the xml parsing and socket code,
+leaving the programmer to concentrate on developing quality jabber
+based applications with Python.
 
-For information about the Jabber project visit http://www.jabber.org.
+jabber.py requires at least python 2.0 and the XML expat parser
+module ( included in the standard Python distrubution ).
 
-'jabberpy' is a Python library to allow the easy creation of Python
-programs, such as clients,  that use the Jabber Instant Messaging 
-protocol. Its sourceforge url is;
+It is developed on Linux but should run happily on other Unix's and
+win32.
 
-  http://sourceforge.net/projects/jabberpy  
+The library currently supports enough of the protocol to write simple 
+jabber clients.
+
+jabber.py is released under the GPL license.
+
+For more infomation see http://jabberpy.sourceforge.net
 
 Whats Needed
 ------------- 
@@ -46,35 +53,38 @@ From the untared distrubution directory; As root run;
 
 python setup.py install
 
-Alternatively just copy XMLStream.py and Jabber.py to somewhere in your
+Alternatively just copy xmlstream.py and jabber.py to somewhere in your
 PYTHON_PATH. 
 
-The included test_client.py script is a simple command line Jabber 
-client written using the library. This client will also run strait from
-the untarred distrubution directory.
+The examples directory contains some simple jabber based programs which 
+use the library. See examples/README
 
 Documentaion
 -------------
-Unfortunatly little documentation exists currently. I suggest having
-a look at the jabber protocol docs ( from jabber.org ) and the source
-code for test_client.py     
+The modules contain embedded docmentation, use pydoc to present this is 
+a nice readable format. 
+
+Also see the protocol documentation on jabber.org and the source code for
+the scripts in examples/* . 
+
+Bugs
+----
+Probably lots :p. If you find any subscribe to the dev list ( see below ) or
+drop me a mail - breakfast@10.am
 
 Notes
-------
+-----
 <> The library should run fine on windows. Unfortunatly the test 
    client will not as it 'selects' on a file handle and 
    windows does not support this. If anyone knows a workaround
-   for this please inform me.
-
-<> The library currently supports most of the 'base' Jabber protocol
-   - messages, presences and iq's. With 'helper' functions for 
-     authentication, rosters, registration etc.
+   for this please then inform me.
 
 <> A Mailing list for the development of the jabberpy project is 
    available at;
 
       http://lists.sourceforge.net/lists/listinfo/jabberpy-devel
 
+   Please subscribe and help the project. 
 
 
 

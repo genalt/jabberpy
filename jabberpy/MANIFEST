@@ -1,6 +1,10 @@
-Jabber.py
 README
-XMLStream.py
+jabber.py
+xmlstream.py
 setup.py
-test_client.py
-examples
+examples/README
+examples/jrpc.py
+examples/test_client.py
+examples/pygtkjab.py
+docs/index.html
+
