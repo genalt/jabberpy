@@ -77,8 +77,6 @@ True  = 1;
 
 timeout = 300
 
-USTR_ENCODING='iso-8859-1'
-
 DBG_INIT, DBG_ALWAYS = debug.DBG_INIT, debug.DBG_ALWAYS
 DBG_DISPATCH = 'jb-dispatch'            ; debug.debug_flags.append( DBG_DISPATCH )
 DBG_NODE = 'jb-node'                    ; debug.debug_flags.append( DBG_NODE)
@@ -178,39 +176,19 @@ RS_EXT_PENDING  = 0
 
 #############################################################################
 
-def ustr(what, encoding=USTR_ENCODING):
-    """
-      If sending object is already a unicode str, just
-      return it, otherwise convert it using encoding
-    """
+def ustr(what):
+    """If sending object is already a unicode str, just
+       return it, otherwise convert it using xmlstream.ENCODING"""
     if type(what) == type(u''):
         r = what
     else:
         try: r = what.__str__()
-        except AttributeError: r = gen_str(what)
+        except AttributeError: r = str(what)
         # make sure __str__() didnt return a unicode
         if type(r) <> type(u''):
-            r = unicode(r,encoding,'replace')
+            r = unicode(r,xmlstream.ENCODING,'replace')
     return r
 xmlstream.ustr = ustr
-
-gen_str=str
-def str(what):
-    """quick and dirty catchall for all the str() usage.
-
-    The code in this module should really be changed to call ustr()
-    instead of str() unless there is a good reason,
-    but remember all data on the wire are suposed to be unicode,
-    so this piece saves sloppy code ;)
-
-    str() usage generally tend to break things for everybody that
-    doesnt speek english - and we are quite a few on this planet...
-
-    If this is just to much to swallow, feel free to comment this out,
-    but please at least make sure that at least Client.send() uses ustr()
-    in that case
-    """
-    return ustr(what)
 
 class NodeProcessed(Exception): pass	# currently only for Connection._expectedIqHandler
 
