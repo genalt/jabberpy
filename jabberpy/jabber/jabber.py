@@ -674,6 +674,29 @@ class Client(Connection):
         self.DEBUG("agents -> %s" % ustr(self._agents),DBG_NODE_IQ)
         return self._agents
 
+    def _discover(self,ns,jid,node=None):
+        iq=Iq(to=jid,type='get',query=ns)
+        if node: iq.putAttr('node',node)
+        rep=self.SendAndWaitForResponse(iq)
+        if rep: return rep.getQueryPayload()
+
+    def discoverItems(self,jid,node=None):
+        """ According to JEP-0030: jid is mandatory, name, node, action is optional. """
+        ret=[]
+        for i in self._discover(NS_P_DISC_ITEMS,jid,node):
+            ret.append(i.attrs)
+        return ret
+
+    def discoverInfo(self,jid,node=None):
+        """ According to JEP-0030:
+            For identity: category, name is mandatory, type is optional.
+            For feature: var is mandatory"""
+        identities , features = [] , []
+        for i in self._discover(NS_P_DISC_INFO,jid,node):
+            if i.getName()=='identity': identities.append(i.attrs)
+            elif i.getName()=='feature': features.append(i.getAttr('var'))
+        return identities , features
+
 #############################################################################
 
 class Protocol(xmlstream.Node):
@@ -826,17 +849,13 @@ class Protocol(xmlstream.Node):
             try: return self.getTag('x')
             except: return None
 
-
-    def getXNodes(self, val=None):
+    def getXNodes(self):
         """Returns a list of X nodes."""
-        try: return self.getTags('x')[val]
-        except: return None
-
+        return self.getTags('x')
 
     def setXNode(self, val=''):
         """Sets the x tag's data to the given textual value."""
         self.insertTag('x').putData(val)
-
 
     def fromTo(self):
         """Swaps the element's from and to attributes.
@@ -981,8 +1000,9 @@ class Presence(Protocol):
 class Iq(Protocol): 
     """Class for creating and managing jabber <iq> protocol
        elements"""
-    def __init__(self, to=None, type=None, attrs=None, frm=None, payload=None, node=None):
+    def __init__(self, to=None, type=None, query=None, attrs=None, frm=None, payload=None, node=None):
         Protocol.__init__(self, 'iq', to=to, type=type, attrs=attrs, frm=frm, payload=payload, node=node)
+        if query: self.setQuery(query)
 
     def _getTag(self,tag):
         try: return self.getTag(tag).namespace
@@ -1017,7 +1037,7 @@ class Iq(Protocol):
         return self._setTag('query',namespace)
 
 
-    def setQueryPayload(self, payload):
+    def setQueryPayload(self, payload, add=False):
         """Sets a Iq's query payload.  'payload' can be either a Node
            structure or a valid xml document. The query tag is automatically
            inserted if it doesn't already exist."""
@@ -1029,23 +1049,19 @@ class Iq(Protocol):
         if type(payload) == type('') or type(payload) == type(u''):
                 payload = xmlstream.NodeBuilder(payload).getDom()
 
-        q.kids = []
+        if not add: q.kids = []
         q.insertNode(payload)
 
                 
     def getQueryPayload(self):
-        """Returns the query's payload as a Node instance"""
+        """Returns the query's payload as a Node list"""
         q = self.getQueryNode()
-        if q and q.kids:
-            return q.kids[0]
-        return None
-
+        if q: return q.kids
     
     def getQueryNode(self):
         """Returns any textual data contained by the query tag"""
         try: return self.getTag('query')
         except: return None
-
 
     def setQueryNode(self, val):
         """Sets textual data contained by the query tag"""
