@@ -228,24 +228,35 @@ class Logon_dialog(gtk.GtkWindow):
         self.vbox = gtk.GtkVBox(gtk.FALSE,5)
         self.add(self.vbox)
 
-        self.frame = gtk.GtkFrame("Have Account?")
-        self.table = gtk.GtkTable(6,6,gtk.FALSE)
+        self.frame_s = gtk.GtkFrame("Server to use")
+        self.table_s = gtk.GtkTable(1,6,gtk.FALSE)
         self.server_lbl = gtk.GtkLabel('Server')
         self.server_lbl.set_alignment(1,0.5)
+        self.server_entry   = gtk.GtkEntry()
+
+        self.table_s.attach( self.server_lbl,
+                             0,2,0,1,xpadding=3,ypadding=2)
+        self.table_s.attach( self.server_entry,
+                             2,6,0,1,xpadding=3,ypadding=2)
+        self.frame_s.add(self.table_s)
+        self.vbox.pack_start(self.frame_s)
+        
+        self.frame = gtk.GtkFrame("Have Account?")
+        self.table = gtk.GtkTable(6,6,gtk.FALSE)
         self.username_lbl = gtk.GtkLabel('Username')
         self.username_lbl.set_alignment(1,0.5)
         self.password_lbl = gtk.GtkLabel('Password')
         self.password_lbl.set_alignment(1,0.5)
 
-        self.server_entry   = gtk.GtkEntry()
+
         self.username_entry = gtk.GtkEntry()
         self.password_entry = gtk.GtkEntry()
         self.password_entry.set_visibility(gtk.FALSE)
 
-        self.table.attach( self.server_lbl,     0,2,0,1,xpadding=3,ypadding=2)
+
         self.table.attach( self.username_lbl,   0,2,1,2,xpadding=3,ypadding=2)
         self.table.attach( self.password_lbl,   0,2,2,3,xpadding=3,ypadding=2) 
-        self.table.attach( self.server_entry,   2,6,0,1,xpadding=3,ypadding=2)
+
         self.table.attach( self.username_entry, 2,6,1,2,xpadding=3,ypadding=2)
         self.table.attach( self.password_entry, 2,6,2,3,xpadding=3,ypadding=2)
 
@@ -262,8 +273,8 @@ class Logon_dialog(gtk.GtkWindow):
         self.frame_acc = gtk.GtkFrame("New User?")
         self.table_acc = gtk.GtkTable(1,1,gtk.FALSE)
         self.button_acc = gtk.GtkButton("Get an Account")
-
-        self.table_acc.attach( self.button_acc, 0,1,0,1,xpadding=5,ypadding=5) 
+        self.table_acc.attach( self.button_acc, 0,1,0,1,xpadding=5,ypadding=5)
+        
         self.frame_acc.add(self.table_acc)
         self.vbox.pack_end(self.frame_acc)
     

@@ -99,9 +99,7 @@ class Connection(XMLStream.Client):
 
             if queryNS and root_node.getAttr('type') == 'result':
 
-                ## !! TODO: use namepace constants + proper xmlnode methods !! ##
                 if queryNS == NS_ROSTER: 
-
                     for item in iq_obj.getQueryNode().getChildren():
                         jid  = item.getAttr('jid')
                         name = item.getAttr('name')
@@ -503,9 +501,49 @@ class Iq(Protocol):
         else:
             self._node.insertTag('query').putData(val)
 
+class Roster:
+    """Class should be considered readonly ! when passed a full JID None
+       or Val is returned. When passed a recourceless jid str a hash is
+       returned for each resource???"""
+    def __init__(self):
+        self._data = {}
+    
+    def getStatus(self, jid): ## extended
+        pass
+
+    def getShow(self, jid):   ## extended
+        pass
+
+    def getOnline(self,jid):  ## extended 
+        """Given a full jid object it will return the status for that
+           resource. Given a 'basic' jid str it will return a list of
+           resources for that jid that are online. Returns none for
+           not online"""
+        pass
+    
+    def getSub(self,jid):
+        pass
+
+    def getName(self,jid):
+        pass
+
+    def getAdd(self,jid):
+        pass
+
+    def getSummary(self):
+        """Returns a list of basic ( no resource ) JID's with there
+           'availability' - online, offline, pending """
+        pass
+    
+    def _add(self,jid,name,sub,add):
+        pass
+        
+
+
 
 class JID: ## !! TODO: integrate into rest of lib ? !! ##
-    def __init__(self, jid=None, node=None, domain=None, resource='default'):
+    def __init__(self, jid=None, node=None, domain='default'
+                 , resource='default'):
         if jid:
             try:
                 bits = split(jid, '@')
