@@ -15,10 +15,10 @@ import sys,string
 TAB_MESSAGE = 1
 TAB_ROSTER  = 2
 TAB_PRESENCE = 3
+TAB_DEBUG = 4
 
 
-
-class Tab:
+class Tab: ### Make bigger and Better !!!
     def __init__(self, type=TAB_MESSAGE):
         self._type = type 
         # just a holder for now
@@ -43,6 +43,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.cmap = self.get_colormap()
         self.cols['blue']  = self.cmap.alloc('blue')
         self.cols['red']   = self.cmap.alloc('red')
+        self.cols['black']   = self.cmap.alloc('black')
         
         self.set_usize(width,height)
         self.connect("delete_event", self.quit)
@@ -101,6 +102,27 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
 
     def rosterSelectCB(self, *args):
         self.roster_selected = int(args[1])
+
+    def highlight_tab(self,tab_no):
+        try:
+            l = self.tabs[tab_no].tab_label
+        except:
+            return
+
+        my_style = l.get_style();
+        my_style.fg[gtk.STATE_NORMAL] = self.cols['blue'] 
+        l.set_style(my_style)
+
+    def lowlight_tab(self,tab_no):
+        try:
+            this_tab = self.tabs[tab_no].tab_label
+        except:
+            return
+
+        my_style = this_tab.tab_label.get_style();
+        my_style.fg[gtk.STATE_NORMAL] = self.cols['black'] 
+        this_tab.tab_label.set_style(my_style)
+
         
     def update_roster_tab(self,roster):
         clist = self.tabs[0].clist
@@ -110,6 +132,10 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
 
     def addChatTab(self,jid): ## can pass callback function in
         self.tabs.append(Tab(TAB_MESSAGE))
+
+#        my_style = self.rc_get_style();
+#        my_style.fg[gtk.STATE_NORMAL] = self.cols['blue'] 
+#
 
         this_tab = self.tabs[-1]
         this_tab.jid = jid
@@ -131,12 +157,30 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         this_tab.button = gtk.GtkButton('send')
         this_tab.hbox.pack_end(this_tab.button, fill=gtk.FALSE, expand=gtk.FALSE)
         this_tab.box.pack_end(this_tab.hbox, fill=gtk.TRUE, expand=gtk.FALSE)
-        
-        self.notebook.append_page(this_tab.box,gtk.GtkLabel(jid))
+
+        this_tab.tab_label = gtk.GtkLabel(jid)
+
+        self.notebook.append_page(this_tab.box,this_tab.tab_label)
         self.notebook.show_all()
         
         this_tab.entry.grab_focus()
         this_tab.event_connected = 0
+
+    def addDebugTab(self): ## can pass callback function in
+        self.tabs.append(Tab(TAB_DEBUG))
+
+        this_tab = self.tabs[-1]
+        this_tab.jid = 'DEBUG'
+        this_tab.box = gtk.GtkVBox()
+        this_tab.scroll = gtk.GtkScrolledWindow()
+        this_tab.txt = gtk.GtkText()
+        this_tab.txt.set_word_wrap( gtk.TRUE )
+        this_tab.scroll.add(this_tab.txt)
+        this_tab.scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        this_tab.box.pack_start(this_tab.scroll, fill=gtk.TRUE, expand=gtk.TRUE)
+
+        self.notebook.append_page(this_tab.box,gtk.GtkLabel('log'))
+        self.notebook.show_all()
 
     def removeTab(self,*args):
         tab_no = self.notebook.get_current_page()
@@ -196,7 +240,7 @@ class JabberClient(Jabber.Connection):
     def __init__(self,server,username,password,resource):
         self.mainwin = mainWindow("jabber app")
 
-        Jabber.Connection.__init__(self,host=server)
+        Jabber.Connection.__init__(self,host=server,log='Dummy')
         try:
             self.connect()
         except XMLStream.error, e:
@@ -221,6 +265,7 @@ class JabberClient(Jabber.Connection):
                 status = 'pending'
             self.roster.append( { 'jid':jid, 'status': status } )
         self.mainwin.addRosterTab(self.roster)
+        self.mainwin.addDebugTab()
         
         self.sendInitPresence()                                  
         self.JID = username + "@" + server 
@@ -242,6 +287,7 @@ class JabberClient(Jabber.Connection):
             self.mainwin.tabs[self.mainwin.findTab(jid)].entry.connect('activate', self.messageSend )
             
     def messageSend(self, *args):
+        print args
         ## find out what tab is focused ##
         tab_no = self.mainwin.notebook.get_current_page()
         ## build the message for the inputted text ##
@@ -255,6 +301,7 @@ class JabberClient(Jabber.Connection):
         ## show the sent text it the tabs text area ##
         self.mainwin.tabs[tab_no].txt.insert(None,None,None, "<%s> %s\n" % ( self.JID, msg.getBody()) )
 
+
     def messageHandler(self, msg_obj):
         jid = msg_obj.getFrom().getBasic();
         body = msg_obj.getBody()
@@ -263,7 +310,9 @@ class JabberClient(Jabber.Connection):
             self.mainwin.tabs[tab_no].button.connect('clicked', self.messageSend )
             self.mainwin.tabs[tab_no].entry.connect('activate', self.messageSend )
             self.mainwin.tabs[tab_no].event_connected = 1
-        
+        if tab_no != self.mainwin.notebook.get_current_page():
+            self.mainwin.highlight_tab(tab_no)
+            
     def presenceHandler(self, prs):
         who = str(prs.getFrom())
         type = prs.getType()
@@ -291,9 +340,14 @@ class JabberClient(Jabber.Connection):
         p = Jabber.Presence(to=jid, type='subscribed');
         self.send(p)
         print p
-        self.send(Jabber.Presence(to=jid, type='subscribe'))
+        ##self.send(Jabber.Presence(to=jid, type='subscribe'))
         self.mainwin.removeTab()
     
+    def log(self, data, inout):
+        tab_no = self.mainwin.findTab('DEBUG',TAB_DEBUG)
+        print "LOG CALLED -> %s" % tab_no
+        if tab_no:
+            self.mainwin.tabs[tab_no].txt.insert(None,None,None, "%s %s\n" % ( inout, data) )
 
 def main():
     server   = sys.argv[1]
@@ -304,6 +358,12 @@ def main():
     while(1): s.process()
     
 if __name__ == "__main__":
-    main()
+    main()  
+
+
+
+
+
+
 
 

@@ -103,15 +103,18 @@ class Connection(XMLStream.Client):
                 ## !! TODO: use namepace constants + proper xmlnode methods !! ##
                 if queryNS == NS_ROSTER: 
 
-                    self._roster = {}
                     for item in iq_obj.getQueryNode().getChildren():
                         jid  = item.getAttr('jid')
                         name = item.getAttr('name')
                         sub  = item.getAttr('subscription')
                         ask  = item.getAttr('ask')
                         if jid:
-                            self._roster[jid] = \
-                            { 'name': name, 'ask': ask, 'subscription': sub }
+                            if sub == 'remove':
+                                try: del self._roster[jid]  
+                                except: self.DEBUG("roster remove - jid not defined ?")
+                            else:
+                                self._roster[jid] = \
+                                { 'name': name, 'ask': ask, 'subscription': sub }
                         else:
                             self.DEBUG("roster - jid not defined ?")
                         self.DEBUG("roster => %s" % self._roster)
@@ -215,14 +218,22 @@ class Connection(XMLStream.Client):
            return False
 
     def requestRoster(self):
-        self._roster = {}
+        self._roster = {} 
         rost_iq = Iq(type='get')
         rost_iq.setQuery('jabber:iq:roster')
         self.SendAndWaitForResponse(rost_iq)
         self.DEBUG("got roster response")
         self.DEBUG("roster -> %s" % str(self._agents))
         return self._roster
-        
+
+    def removeRosterItem(self,jid):        
+        rost_iq = Iq(type='set')
+        q = rost_iq.setQuery('jabber:iq:roster').insertTag('item')
+        q.putAtrr('jid', str(jid))
+        q.putAtrr('subscription', 'remove')
+        self.SendAndWaitForResponse(rost_iq)
+        return self._roster
+    
     def requestRegInfo(self,agent=''):
         if agent: agent = agent + '.'
         self._reg_info = {}
