@@ -1,0 +1,18 @@
+Jabber.py 0.01 README
+
+This requires >= Python2.0 with the xml librarys installed.
+
+If you are running debian as root;
+
+apt-get install python2-base
+apt-get install python2-xmlbase
+
+You can run test_simple from untared directory or if you have distutils 
+installed , as root, execute  
+
+python2 setup.py install
+
+to install in your proper lib directorys.
+
+I dont think the test_client will run on windows ( uses select on a filehandle) but I think the libs should .......?
+
