@@ -68,7 +68,7 @@ import xmlstream
 import sha, time
 from string import split,find,replace
 
-VERSION = '0.4'
+VERSION = '0.4+'
 
 False = 0;
 True  = 1;
@@ -178,13 +178,13 @@ def ustr(what, encoding=USTR_ENCODING):
 		r = what.__str__()
 	except AttributeError, value:
 		# inner __str__ is missing
-		r = str(what)
+		r = generic_str(what)
         # make sure __str__() didnt return a unicode
         if type(r) <> type(u''):
             r = unicode(r,encoding,'replace')
     return r
 
-
+generic_str=str
 def str(what):
     """quick and dirty catchall for all the str() usage.
 
@@ -679,6 +679,8 @@ class Client(Connection):
             
         iq_result = self.SendAndWaitForResponse(auth_set_iq)
 
+        if iq_result==None:
+             return False
         if iq_result.getError() is None:
             return True
         else:
@@ -686,8 +688,6 @@ class Client(Connection):
            self.lastErrCode = iq_result.getErrorCode()
            # raise error(iq_result.getError()) ?
            return False
-        if iq_result is None:
-             return False
         return True
 
     ## Roster 'helper' func's - also see the Roster class ##
@@ -725,12 +725,12 @@ class Client(Connection):
         """
         iq = Iq(type='set')
         item = iq.setQuery(NS_ROSTER).insertTag('item')
-        item.putAtrr('jid', ustr(jid))
-        if name != None: item.putAtrr('name', name)
+        item.putAttr('jid', ustr(jid))
+        if name != None: item.putAttr('name', name)
         if groups != None:
             for group in groups:
                 item.insertTag('group').insertData(group)
-        dummy = self.sendAndWaitForResponse(iq) # Do we need to wait??
+        dummy = self.SendAndWaitForResponse(iq) # Do we need to wait??
 
 
     def removeRosterItem(self,jid):
@@ -837,6 +837,27 @@ class Protocol:
        Implements methods that are common to all these"""
     def __init__(self):
         self._node = None
+
+
+    def getError(self):
+        """Returns the error string, if any"""
+        try: return self._node.getTag('error').getData()
+        except: return None
+
+
+    def getErrorCode(self):
+        """Returns the error code, if any"""
+        try: return self._node.getTag('error').getAttr('code')
+        except: return None
+
+
+    def setError(self,val,code):
+        """Sets an error string and code"""
+        err = self._node.getTag('error')
+        if not err:
+            err = self._node.insertTag('error')
+        err.putData(val)
+        err.putAttr('code',ustr(code))
 
 
     def asNode(self):
@@ -1024,18 +1045,6 @@ class Message(Protocol):
         except: return None
 
 
-    def getError(self):
-        """Returns the message's error string, if any."""
-        try: return self._node.getTag('error').getData()
-        except: return None
-
-
-    def getErrorCode(self):
-        """Returns the message's error Code, if any."""
-        try: return self._node.getTag('error').getAttr('code')
-        except: return None
-
-
     def getTimestamp(self):
         return self.time_stamp
 
@@ -1065,17 +1074,6 @@ class Message(Protocol):
             thread.putData(val)
         else:
             self._node.insertTag('thread').putData(val)
-
-
-    def setError(self,val,code):
-        """Sets the message error text."""
-        err = self._node.getTag('error')
-        if err:
-            err.putData(val)
-        else:
-                        err = self._node.insertTag('error')
-                        err.putData(val)
-        err.putAttr('code',ustr(code))
 
 
     def setTimestamp(self,val):
@@ -1165,29 +1163,6 @@ class Iq(Protocol):
             self._node = xmlstream.Node(tag='iq')
         if to: self.setTo(to)
         if type: self.setType(type)
-
-
-    def getError(self):
-        """Returns the Iq's error string, if any"""
-        try: return self._node.getTag('error').getData()
-        except: return None
-
-
-    def getErrorCode(self):
-        """Returns the Iq's error code, if any"""
-        try: return self._node.getTag('error').getAttr('code')
-        except: return None
-
-
-    def setError(self,val,code):
-        """Sets an Iq's error string and code"""
-        err = self._node.getTag('error')
-        if err:
-            err.putData(val)
-        else:
-            err = self._node.insertTag('error')
-            err.putData(val)
-        err.putAttr('code',ustr(code))
 
 
     def _getTag(self,tag):
@@ -1625,7 +1600,7 @@ class Log(Protocol):
             self._node = xmlstream.Node(tag='log')
         if to:   self.setTo(to)
         if type: self.setType(type)
-        if frm: self.setFrom(type)
+        if frm: self.setFrom(frm)
 
 
     def setBody(self,val):
@@ -1633,7 +1608,7 @@ class Log(Protocol):
         self._node.getTag('log').putData(val)
 
 
-    def setBody(self):
+    def getBody(self):
         "Returns the log message text."
         return self._node.getTag('log').getData()
 
