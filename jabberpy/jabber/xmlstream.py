@@ -81,12 +81,11 @@ class error:
     
 class Node:
     """A simple XML DOM like class"""
-    def __init__(self, tag=None, parent=None, attrs=None, payload=[], node=None):
+    def __init__(self, tag=None, parent=None, attrs={}, payload=[], node=None):
         if node:
             if type(node)<>type(self): node=NodeBuilder(node).getDom()
             self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = \
                 node.name,node.namespace,node.attrs,node.data,node.kids,node.parent
-            return
         else:
             self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = 'tag','',{},[],[],None
 
@@ -96,9 +95,8 @@ class Node:
 
 #        if self.parent and not self.namespace: self.namespace=self.parent.namespace	# Doesn't checked if this neccessary
 
-        if attrs:
-            for attr in attrs.keys():
-                self.attrs[attr]=attrs[attr]
+        for attr in attrs.keys():
+            self.attrs[attr]=attrs[attr]
 
         for i in payload:
             if type(i)==type(self): self.insertNode(i)
@@ -154,7 +152,7 @@ class Node:
         "Set the nodes namespace." 
         self.namespace = namespace
 
-    def insertTag(self, name=None, attrs=None, payload=[], node=None):
+    def insertTag(self, name=None, attrs={}, payload=[], node=None):
         """ Add a child tag of name 'name' to the node.
 
             Returns the newly created node.
