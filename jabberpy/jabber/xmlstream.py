@@ -365,7 +365,7 @@ class Stream(NodeBuilder):
             raw_data = unicode(raw_data,ENCODING)
         data_out = raw_data.encode('utf-8')
         try:
-            self._write(raw_data)
+            self._write(data_out)
             self.log(data_out, 'SENT:')
             self.DEBUG("sent %s" % data_out,DBG_XML_RAW)
         except:
