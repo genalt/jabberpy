@@ -1126,6 +1126,11 @@ class jabberClient(jabber.Client):
 
 def main():
 
+#    pass args to jabberClient object
+#    if -f exists mkfifo named with f param, open for writing ( r+ )
+#    launcher will open this for reading after forking the app
+#    app will then pipe messages to it
+
     s = jabberClient()
     while(1): s.process()
     

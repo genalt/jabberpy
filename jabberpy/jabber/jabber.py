@@ -136,9 +136,9 @@ class Connection(xmlstream.Client):
     def __init__(self, host, port, namespace,
                  debug=False, log=False, connection=xmlstream.TCP):
     
-        self.msg_hdlr  = None
-        self.pres_hdlr = None
-        self.iq_hdlr   = None
+#        self.msg_hdlr  = None
+#        self.pres_hdlr = None
+#        self.iq_hdlr   = None
 
         self.iq_hdlrs   = []
         self.msg_hdlrs  = []
@@ -357,21 +357,24 @@ class Client(Connection):
     Inherits from the xmlstream Client class"""    
     def __init__(self, host, port=5222, debug=False, log=False):
     
-        self.msg_hdlr  = None
-        self.pres_hdlr = None
-        self.iq_hdlr   = None
-        self.disconnect_hdlr = None
+#        self.msg_hdlr  = None
+#        self.pres_hdlr = None
+#        self.iq_hdlr   = None
+#        self.disconnect_hdlr = None
+
+        Connection.__init__(self, host, port,'jabber:client', debug, log)
+        
         
         self._roster = Roster()
         self._agents = {}
         self._reg_info = {}
         self._reg_agent = ''
 
-        self._id = 0;
-        self._expected = {}
-        
-        self.lastErr = ''
-        self.lastErrCode = 0
+#        self._id = 0;
+#        self._expected = {}
+#        
+#        self.lastErr = ''
+#        self.lastErrCode = 0
 
         xmlstream.Client.__init__(self, host, port,
                                   'jabber:client', debug, log)
@@ -1136,7 +1139,9 @@ class JID:
                 self.resource = ''
             else:
                 self.domain, self.resource = split(jid, '/') 
-
+                slash_ind = find(jid, '/')
+                self.domain = jid[:slash_ind]
+                self.resource = jid[(slash_ind + 1):]
         else:
             self.node = node
             self.domain = domain
