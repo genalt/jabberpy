@@ -143,8 +143,8 @@ class Node:
     def insertTag(self, name):
         """ Add a child tag of name 'name' to the node.
 
-	    Returns the newly created node.
-	"""
+            Returns the newly created node.
+        """
         newnode = Node(tag=name, parent=self)
         self.kids.append(newnode)
         return newnode
@@ -301,14 +301,25 @@ class Stream:
         self._timestampLog = True
 
     def timestampLog(self,timestamp):
-	""" Enable or disable the showing of a timestamp in the log.
-	    By default, timestamping is enabled.
-	"""
-	self._timestampLog = timestamp
+        """ Enable or disable the showing of a timestamp in the log.
+            By default, timestamping is enabled.
+        """
+        self._timestampLog = timestamp
 
     def DEBUG(self,txt):
         if self._debug:
-            sys.stderr.write("DEBUG: %s\n" % txt)
+            try:
+                sys.stderr.write("DEBUG: %s\n" % txt)
+            except:
+                # unicode strikes again ;)
+                s=u''
+                for i in range(len(txt)):
+                    if ord(txt[i]) < 128:
+                        c = txt[i]
+                    else:
+                        c = '?'
+                    s=s+c
+                sys.stderr.write("DEBUG: %s\n" % s )
 
     def getSocket(self):
         return self._sock
@@ -371,50 +382,53 @@ class Stream:
     ##def syntax_error(self, message):
     ##    self.DEBUG("error " + message)
 
+    def _do_read( self, action, buff_size ):
+        """workhorse for read() method.
+
+        added 021231 by jaclu"""
+        data=''
+        data_in = action(buff_size)
+        while data_in:
+            data = data + data_in
+            if len(data_in) != buff_size:
+                break
+            data_in = action(buff_size)
+        return data
+
     def read(self):
-        """Reads incoming data. Called by process() so nonblocking"""
-        data =    u''
-        data_in = u''
+        """Reads incoming data. Called by process() so nonblocking
+
+        changed 021231 by jaclu
+        """
         if self._connection == TCP:
-            data_in = data_in + \
-              unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(ENCODING,
-                                                            'replace')
-            while data_in:
-                data = data + data_in
-                if len(data_in) != BLOCK_SIZE:
-                    break
-                data_in = unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(
-                    ENCODING, 'replace')
-
-        if self._connection == TCP_SSL:
-            data_in = data_in + \
-              unicode(self._sslObj.read(BLOCK_SIZE),'utf-8').encode(ENCODING,'replace')
-            while data_in:
-                data = data + data_in
-                if len(data_in) != BLOCK_SIZE:
-                    break
-                data_in = unicode(self._sslObj.read(BLOCK_SIZE),'utf-8').encode(ENCODING, 'replace')
-
+            raw_data = self._do_read(self._sock.recv, BLOCK_SIZE)
+        elif self._connection == TCP_SSL:
+            raw_data = self._do_read(self._sslObj.read, BLOCK_SIZE)
         elif self._connection == STDIO:
-            ## Hope this dont buffer !
-            data_in = data_in + unicode(sys.stdin.read(1024),'utf-8').encode(
-                    ENCODING, 'replace')
-            while data_in:
-                data = data + data_in
-                if len(data_in) != 1024:
-                    break
-                data_in = unicode(sys.stdin.read(1024),'utf-8').encode(
-                    ENCODING, 'replace')
+            raw_data = self._do_read(self.stdin.read, 1024)
         else:
-            pass # should never get here
-            
+            raw_data = '' # should never get here
+
+        # just encode incoming data once!
+        data = unicode(raw_data,'utf-8').encode(ENCODING,'replace')
         self.DEBUG("got data %s" % data )
         self.log(data, 'RECV:')
         self._parser.Parse(data)
         return data
-    
-    def write(self,data_out=u''):
-        """Writes raw outgoing data. blocks"""
+
+    def write(self,raw_data=u''):
+        """Writes raw outgoing data. blocks
+
+        changed 021231 by jaclu, added unicode encoding
+        """
+        if type(raw_data) == type(u''):
+            data_out = raw_data.encode('utf-8','replace')
+        else:
+            # since not suplied as unicode, we must guess at
+            # what the data is, iso-8859-1 seems reasonable.
+            # To avoid this auto assumption,
+            # send your data as a unicode string!
+            data_out = unicode(raw_data,'iso-8859-1').encode(ENCODING,'replace')
         try:
             if self._connection == TCP:
                 self._sock.send (data_out)
@@ -500,7 +514,7 @@ class Client(Stream):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self._sock.connect((self._host, self._port))
-        except socket.error, e:			  
+        except socket.error, e:
             self.DEBUG("socket error")
             raise error(e)
 
