@@ -411,7 +411,8 @@ class Client(Connection):
 
     def disconnect(self):
         """Safely disconnects from the connected server"""
-        self.send(Presence(type='unavailable'));
+        self.send(Presence(type='unavailable'))
+        while self.process(): pass
         xmlstream.Client.disconnect(self)
 
     def sendInitPresence(self):
@@ -1035,7 +1036,7 @@ class Iq(Protocol):
     def getQueryPayload(self):
         """Returns the query's payload as a Node instance"""
         q = self.getQueryNode()
-        if q:
+        if q and q.kids:
             return q.kids[0]
         return None
 
