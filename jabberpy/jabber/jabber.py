@@ -265,6 +265,7 @@ class Connection(xmlstream.Client):
         stanza=self.handlers[name][type](node=stanza)
 
         typ=stanza.getType()
+        if not typ: typ=''
         try:
             ns=stanza.getQuery()
             if not ns: ns=''
