@@ -163,11 +163,11 @@ class Debug:
                   encoding = None
                   ):
 
-        if type(active_flags)==type(1):
+        if type(active_flags) not in [type([]), type(())]:
             print  '***' 
-            print  '*** Oldformat debug param given: %s' % active_flags
+            print  '*** Invalid or oldformat debug param given: %s' % active_flags
             print  '*** please correct your param, should be of [] type!'
-            print  '*** due to this, full debuging is enabled'
+            print  '*** Due to this, full debuging is enabled'
             active_flags=[DBG_ALWAYS]
 
         if welcome == -1:
