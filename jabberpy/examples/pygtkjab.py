@@ -21,9 +21,18 @@ Known = {
 
 def makeKnownNice(jid):
     for known in Known.keys():
-        if re.match("^"+known+".*", jid.getDomain()): return jid.getNode()
+        if re.match("^"+known+".*", jid.getDomain()):
+            if jid.getNode():
+                return jid.getNode()
+            else:
+                return known + " transport"
     return str(jid)
 
+def sort_jids(a,b):
+    if string.lower(str(a)) < string.lower(str(b)): return -1
+    if string.lower(str(a)) > string.lower(str(b)): return 1
+    return 0
+    
 class Tab:
     def __init__(self, gui, title):
         self._type = type
@@ -247,6 +256,8 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
             else:
                 self.paint_tree() ## a presence 
 
+
+
     def paint_tree(self):
         self._ctree.freeze()
         self._ctree.clear()
@@ -267,13 +278,23 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
         print _roster.getSummary()
         self._nodes = []
         jids = _roster.getJIDs()
-        jids.sort()
+        jids.sort(sort_jids)
         for jid in jids:
             attach_node = None
             nice_name = makeKnownNice(jid)
+            show = ''
+            if _roster.getShow(jid): show = _roster.getShow(jid)
+            if _roster.getStatus(jid):
+                if show:
+                    show = " ( %s / %s )" % ( show, _roster.getStatus(jid) )
+                else:
+                    show = " ( %s )" % _roster.getStatus(jid) 
+            nice_name = str("%s %s" % ( nice_name, show ))
+            print "DEBUG: %s" % nice_name
             if _roster.getOnline(jid) == 'online':
                 node =self._ctree.insert_node(
-                                 self._online_node, None, ( nice_name, ), 2,
+                                 self._online_node, None, ( nice_name, )
+                                 , 2,
                                  pixmap_closed = self._online_icon,
                                  mask_closed   = self._online_mask,
                                  is_leaf=gtk.TRUE,
@@ -281,7 +302,8 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
 
             elif _roster.getOnline(jid) == 'offline':
                 node =self._ctree.insert_node(
-                                 self._offline_node, None, ( nice_name, ), 2,
+                                 self._offline_node, None, ( nice_name, )
+                                 , 2,
                                  pixmap_closed = self._offline_icon,
                                  mask_closed   = self._offline_mask,
                                  is_leaf=gtk.TRUE,
@@ -289,7 +311,8 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
 
             elif _roster.getOnline(jid) == 'pending':
                 node =self._ctree.insert_node(
-                                 self._pending_node, None, ( nice_name, ), 2,
+                                 self._pending_node, None, ( nice_name, )
+                                 , 2,
                                  pixmap_closed = self._pending_icon,
                                  mask_closed   = self._pending_mask,
                                  is_leaf=gtk.TRUE,
@@ -530,6 +553,67 @@ class Add_dialog(gtk.GtkDialog):
         self.hide()
         del self
 
+class Status_dialog(gtk.GtkDialog):                  
+                                                 
+    def __init__(self):
+
+        gtk.GtkDialog.__init__(self)
+
+        self.jid_str  = None
+        self.done     = None
+        self.type     = 'available'
+
+        self.connect("delete_event", self.delete_event)
+        #self.master = master
+        #self.jabber = jabberObj
+        
+        self.set_usize(200,150)
+
+        self.table = gtk.GtkTable(5,2,gtk.FALSE)
+        self.jid_lbl = gtk.GtkLabel('Status')
+
+        self.jid_entry   = gtk.GtkEntry()
+
+        self.table.attach( self.jid_lbl,     0,1,0,1)
+        self.table.attach( self.jid_entry,   1,2,0,1)
+
+        self.add_button = gtk.GtkButton('Set')
+        self.add_button.connect('clicked', self.set)
+        self.action_area.pack_start(self.add_button,expand=gtk.FALSE)
+
+        self.avail_radio   = gtk.GtkRadioButton(None, 'available')
+        self.unavail_radio = gtk.GtkRadioButton(self.avail_radio, 'unavailable')
+        self.avail_radio.connect('clicked', self.avail)
+        self.unavail_radio.connect('clicked', self.unavail)
+        self.avail_radio.set_active(gtk.TRUE)
+
+        self.table.attach( self.avail_radio,     0,2,1,2)
+        self.table.attach( self.unavail_radio,   0,2,2,3)
+
+        self.vbox.pack_start(self.table)
+             
+        self.vbox.show_all()
+        self.action_area.show_all()
+        self.show()
+        self.set_modal(gtk.TRUE)
+
+    def avail(self, *args): self.type = None
+    def unavail(self, *args): self.type = 'unavailable'
+
+    def set(self,*args):
+
+        self.done =  ( self.type , self.jid_entry.get_text() )
+        
+
+    def delete_event(win, event=None):
+        self.hide()
+        self.done = 1
+        return gtk.FALSE
+
+    def close(self,*args):
+        self.hide()
+        del self
+
 MSG_DIA_TYPE_OK    = 0
 MSG_DIA_TYPE_YESNO = 1
 MSG_DIA_RET_OK     = 1
@@ -663,14 +747,8 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.box.show()
         self.tbox = gtk.GtkHBox()
 
+        self.checkItemCalled = 0
         self.init_menu()
-#        self.stat_label = gtk.GtkLabel('Status:') 
-#        self.stat_label.show()
-#        self.tbox.pack_start(self.stat_label, fill=gtk.FALSE, expand=gtk.FALSE)
-#        self.stat_combo = gtk.GtkCombo()
-#        self.stat_combo.set_popdown_strings(['on', 'off'])
-#        self.stat_combo.show()
-#        self.tbox.pack_start(self.stat_combo, fill=gtk.FALSE, expand=gtk.FALSE)
         self.close_but = gtk.GtkButton('X')
         self.close_but.connect("clicked", self.closeTabCB);
         self.close_but.show()
@@ -698,28 +776,57 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.itemf.create_items([
             ('/File',             None, None, 0, '<Branch>'),
             ('/File/Exit',        None, self.quit, 0, ''),
-            ('/Roster',           None, None, 0, '<Branch>'),
-            ('/Roster/Chat',      None, self.jabberObj.addChatTabViaRoster,
+            ('/Tools',           None, None, 0, '<Branch>'),
+            ('/Tools/Chat',      None, self.jabberObj.addChatTabViaRoster,
                                   1, ''),            
-            ('/Roster/sep1',        None, None, 0, '<Separator>'),            
-            ('/Roster/Add',        None, self.addCB, 1, ''),
-            ('/Roster/Remove',     None, self.removeCB, 0, ''),
-            ('/Roster/Transports', None, self.transCB, 0, ''),
-            ('/Roster/Status/Available', None, None , 0, '<CheckItem>'),
-            ('/Roster/Status/Unavailable', None, None , 0, '<CheckItem>'),
-            ('/Roster/Status/Custom', None, None , 0, '<CheckItem>'),
-            ('/Tab',               None, None, 0, '<Branch>'),
-            ('/Tab/Close',         None, self.closeTabCB, 1, ''),
-            ('/Tab/sep1',        None, None, 0, '<Separator>'),
-            ('/Tab/Url Grabber', None, self.urlTabCB, 0, ''),            
+            ('/Tools/sep1',        None, None, 0, '<Separator>'),            
+            ('/Tools/Add',        None, self.addCB, 1, ''),
+            ('/Tools/Remove',     None, self.removeCB, 0, ''),
+
+            ('/Tools/Status/Available', None, self.statusCB, 1, '<CheckItem>'),
+            ('/Tools/Status/Unavailable', None, self.statusCB, 0, '<CheckItem>'),
+            ('/Tools/Status/Custom', None, self.custstatusCB, 0, ''),
+            ('/Tools/sep2',        None, None, 0, '<Separator>'),            
+            ('/Tools/Transports', None, self.transCB, 0, ''),
+            ('/Tools/Tabs/Url Grabber', None, self.urlTabCB, 0, ''),
             ('/Help', None, None, 0, '<Branch>') ,
             ('/Help/About', None, self.infoCB, 0, '')
             ])
 
         self.menubar = self.itemf.get_widget('<main>')
+        self.itemf.get_widget( '/Tools/Status/Available' ).set_active(gtk.TRUE)
         self.tbox.pack_start(self.menubar, fill=gtk.TRUE, expand=gtk.TRUE)
         self.menubar.show()
 
+    def statusCB(self,action,widget):
+        if self.checkItemCalled == 1:   ## Make sure set_active does not 
+            return                      ## recall the callback
+        self.checkItemCalled = 1;
+
+        ## More nasty workarounds for ItemFactory Radiobutton problems
+        for path in [ '/Tools/Status/Available', '/Tools/Status/Unavailable' ]:
+            if widget != self.itemf.get_widget( path ):
+                self.itemf.get_widget( path ).set_active(gtk.FALSE)
+        self.checkItemCalled = 0;
+        
+        if action == 1:
+            # available
+            pres = jabber.Presence()
+        else:
+            pres = jabber.Presence(type='unavailable')
+
+        self.jabberObj.send(pres)
+            
+    def custstatusCB(self, *args):
+        dia = Status_dialog()
+        while dia.done is None:
+            self.jabberObj.process()
+        type, show = dia.done
+        pres = jabber.Presence(type=type)
+        pres.setShow(show)
+        self.jabberObj.send(pres)
+        dia.close()
+        
     def urlTabCB(self, *args):
         url_tab = self.findTab( 'URLs' )
         if url_tab:
@@ -866,10 +973,10 @@ class jabberClient(jabber.Client):
         self.roster = []
         r = self.requestRoster()
         self.gui = mainWindow("jabber app",jabberObj=self)
-        self.sendInitPresence()                                  
         self.gui.getTab(0)._cb = self.addChatTabViaRoster;
-
+        self.sendInitPresence()                                  
         self._unsub_lock = 0 ## hack to fix unsubscribe wierdo bug
+        self._pres_queue  = []
 
     def addToRoster(self, *args): pass
               
@@ -935,8 +1042,6 @@ class jabberClient(jabber.Client):
         print "DEBUG: pres got %s from %s" % ( type, who )
         print "DEBUG: %s" % prs_obj
         
-
-
         if type == 'subscribe':
             msg_dia = Msg_dialog(None,
                                  "subscribe request from %s" % (who),

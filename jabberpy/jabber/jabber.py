@@ -117,7 +117,7 @@ RS_EXT_OFFLINE  = 1
 RS_EXT_PENDING  = 0
 
 
-class BaseClient(xmlstream.Client):
+class Connection(xmlstream.Client):
     """Forms the base for both Client and Component Classes"""
     def __init__(self, host, port, namespace,
                  debug=False, log=False, connection=xmlstream.TCP):
@@ -125,6 +125,11 @@ class BaseClient(xmlstream.Client):
         self.msg_hdlr  = None
         self.pres_hdlr = None
         self.iq_hdlr   = None
+
+        self.iq_hdlrs   = []
+        self.msg_hdlrs  = []
+        self.pres_hdlrs = []
+        
         self.disconnect_hdlr = None
         
         self._id = 0;
@@ -185,18 +190,24 @@ class BaseClient(xmlstream.Client):
 
     ## Call back stuff ###
 
-    def setMessageHandler(self, func):
+    def setMessageHandler(self, func, type='default'):
         """Set the callback func for recieving messages"""
         self.msg_hdlr = func
 
-    def setPresenceHandler(self, func):
+##      self.msg_hdlrs.append([  type : func ]) 
+
+    def setPresenceHandler(self, func, type='default'):
         """Set the callback func for recieving presence"""
         self.pres_hdlr = func
 
-    def setIqHandler(self, func):
+##      self.pres_hdlrs.append([  type : func ]) 
+
+    def setIqHandler(self, func, type='default', ns='default'):
         """Set the callback func for recieving iq's"""
         self.iq_hdlr = func
 
+##      self.iq_hdlrs.append([ type : [ ns : func ] ]) 
+        
     def setDisconnectHandler(self, func):
         """Set the callback for a disconnect"""
         self.disconnect_hdlr = func
@@ -205,7 +216,21 @@ class BaseClient(xmlstream.Client):
         """Called when a message protocol element is recieved - can be
            overidden"""
         if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
-        
+
+##        output = ''
+##        for dicts in self.msg_hdlrs:
+##            if dicts.has_key(msg_obj.getType()):
+##                if dicts[msg_obj.getType()].func_code.co_argcount == 2:
+##                    dicts[msg_obj.getType()](self, msg_obj)
+##                else:
+##                    output = dicts[msg_obj.getType()](self, msg_obj, output)
+##            elif dicts.has_key('default'):
+##                if dicts['default'].func_code.co_argcount == 2:
+##                    dicts['default'](self, msg_obj)
+##                else:
+##                    output = dicts['default'](self, msg_obj, output)
+##            else: pass
+
     def presenceHandler(self, pres_obj): ## Overide If You Want ##
         """Called when a pressence protocol element is recieved - can be
            overidden"""
@@ -215,6 +240,17 @@ class BaseClient(xmlstream.Client):
         """Called when an iq protocol element is recieved - can be
            overidden"""
         if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
+
+##        for dicts in self.iq_hdlrs: ## do stackables to check ##
+##            if dicts.has_key(iq_obj.getType()):
+##                if dicts[iq_obj.getType()].has_key(iq_obj.getQuery()):
+##                    dicts[iq_obj.getType()][iq_obj.getQuery()](self, iq_obj)
+##                else:
+##                    dicts[iq_obj.getType()]['default'](self, iq_obj)
+##            elif dicts.has_key('default'): 
+##                dicts['default']['default'](self, iq_obj)
+##            else: pass
+##
 
     def disconnected(self):
         """Called when a network error occurs - can be overidden"""
@@ -252,7 +288,7 @@ class BaseClient(xmlstream.Client):
         return str(self._id)
     
 
-class Client(xmlstream.Client):
+class Client(Connection):
     """Class for managing a connection to a jabber server.
     Inherits from the xmlstream Client class"""    
     def __init__(self, host, port=5222, debug=False, log=False):
@@ -1115,14 +1151,14 @@ class JID:
 
 
 
-class Component(BaseClient):
+class Component(Connection):
     """THIS IS A PROTOTYPE !!"""
     def __init__(self, host, port=5222, connection=xmlstream.TCP,
                  debug=False, log=False):
 
         self._auth_OK = False
 
-        BaseClient.__init__(self, host, port,
+        Connection.__init__(self, host, port,
                             namespace='jabber:component:accept',
                             debug=debug,
                             log=log,
@@ -1143,7 +1179,7 @@ class Component(BaseClient):
         """Catch the <handshake/> here"""
         if root_node.name == 'handshake': # check id too ?
             self._auth_OK = True
-        BaseClient.dispatch(self, root_node)
+        Connection.dispatch(self, root_node)
 
 class Server:
     pass

@@ -45,13 +45,11 @@ def doCmd(con,txt):
             p = jabber.Presence()
             MyStatus = ' '.join(cmd[1:])
             p.setStatus(MyStatus)
-            p.setShow(MyShow)
             con.send(p)
         elif cmd[0] == '/show':
             p = jabber.Presence()
             MyShow = ' '.join(cmd[1:])
             p.setShow(MyShow)
-            p.setStatus(MyStatus)
             con.send(p)
         elif cmd[0] == '/subscribe':
             to = cmd[1]
