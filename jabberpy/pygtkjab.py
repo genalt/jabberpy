@@ -31,6 +31,13 @@ class Tab:
         self.cols['red']   = self.cmap.alloc('red')
         self.cols['black']   = self.cmap.alloc('black')
 
+        self.blue_tab_style = gtk.GtkLabel().get_style()
+        self.blue_tab_style.fg[0] = self.cols['blue'] 
+        self.red_tab_style = gtk.GtkLabel().get_style()
+        self.red_tab_style.fg[0] = self.cols['red'] 
+        self.default_tab_style = gtk.GtkLabel().get_style()
+
+
         self.gui = gui
         
     def getID(self): return self._id;
@@ -58,22 +65,30 @@ class Tab:
         return gtk.FALSE
 
     def highlight(self):
+        self.blue_tab_style = self._tab_label.get_style()
+        self.blue_tab_style.fg[0] = self.cols['blue'] 
+
+        print "HIGHLIGHTING"
         print "highlighting", str(self.__class__)
-        my_style = self._tab_label.get_style();
+#        my_style = self._tab_label.get_style();
 #        my_style.bg[gtk.STATE_NORMAL] = self.cols['red'] 
-        for x in range(0,5):
-            print x
-            my_style.bg[x] = self.cols['blue']
-        self._tab_label.set_style(my_style)
+#        for x in range(0,5):
+#            print x
+#            my_style.bg[x] = self.cols['blue']
+        self._tab_label.set_style(self.blue_tab_style)
         #self._tab_label.show()
 
     def lowlight(self):
-        label = self._notebook.get_tab_label (self._notebook.get_current_page())
-
-        my_style = label.get_style();
-        my_style.bg[gtk.STATE_NORMAL] = self.cols['blue'] 
-        label.set_style(my_style)
-        #self._tab_label.show()
+        print "LOWLIGHTING"
+        self.red_tab_style = gtk.GtkLabel().get_style()
+        self.red_tab_style.fg[0] = self.cols['red'] 
+        self._tab_label.set_style(self.red_tab_style)
+#        label = self._notebook.get_tab_label (self._notebook.get_current_page())
+#
+#        my_style = label.get_style();
+#        my_style.bg[gtk.STATE_NORMAL] = self.cols['blue'] 
+#        label.set_style(my_style)
+#        #self._tab_label.show()
 
     def getJID(self):
         return None
@@ -140,7 +155,7 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
 
 
 class Roster_Tab(Tab): ### Make bigger and Better !!!
-    def __init__(self, gui, title, roster):
+    def __init__(self, gui, title):
         Tab.__init__(self, gui, title)
         self._roster_selected = None
         self._rows = []
@@ -157,10 +172,10 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
         
         self._clist.connect("select_row" , self.rosterSelectCB)
 
-        for item in roster:
-            self._clist.append( [ str(item['jid']), str(item['status']) ] )
-            self._rows.append( { 'jid':str(item['jid']) ,
-                                 'status':str(item['status']) } )
+
+        _roster = self.gui.jabberObj.getRoster()
+        for jid in _roster.getJIDs():
+            self._clist.append( [ str(jid), _roster.getOnline(jid) ] )
             
         self._scroll.add(self._clist)
         self._scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
@@ -179,31 +194,21 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
         self._roster_selected = int(args[1])
 
     def get_roster_selection(self):
-        return self._rows[self._roster_selected]['jid']
+        return str(self.gui.jabberObj.getRoster().getJIDs()[self._roster_selected])
+        #return self._rows[self._roster_selected]['jid']
 
     def recieve(self,obj):
         if str(obj.__class__) != 'Jabber.Presence': return FALSE
+        ## TODO: should recieve iq's too
+        self.repaint()
         print "recieved presence"
-        for row in self._rows:
-            print "cjecking ", Jabber.JID(row['jid']).getBasic() ,obj.getFrom().getBasic()
-            if Jabber.JID(row['jid']).getBasic() == obj.getFrom().getBasic():
-                print "updating"
-                type = obj.getType()
-                if type == None: type = 'available'
-
-                if type == 'available':
-                    row['status'] = 'online'
-                elif type == 'unavailable':
-                    row['status'] = 'offline'
-                self.repaint()
-                return TRUE
-        return FALSE
 
     def repaint(self):
         self._clist.clear()
-        for row in self._rows:
-            self._clist.append( [ str(row['jid']), str(row['status']) ] )
-
+        _roster = self.gui.jabberObj.getRoster()
+        for jid in _roster.getJIDs():
+            self._clist.append( [ str(jid), _roster.getOnline(jid) ] )
+            
     def update_roster_tab(self,roster):
         clist = self.tabs[0].clist
         clist.clear()
@@ -381,7 +386,7 @@ class Msg_dialog(gtk.GtkDialog):
 
 
 class mainWindow(gtk.GtkWindow):         # Usual Base
-    def __init__(self, title='pygtk app', roster=None,
+    def __init__(self, title='pygtk app', jabberObj=None,
                  width=None, height=None):
         gtk.GtkWindow.__init__(self)
         self.set_title(title)
@@ -396,6 +401,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self._tabs = []
         self.cols = {};
 
+        self.jabberObj = jabberObj
         self.roster_selected = None
         
         self.set_usize(width,height)
@@ -404,6 +410,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.box = gtk.GtkVBox()
         self.add(self.box)
         self.box.show()
+        
         #self.init_menu()        
 
         self.notebook = gtk.GtkNotebook()
@@ -412,7 +419,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.notebook.connect('switch_page', self.notebook_switched)
         self.box.pack_end(self.notebook, fill=gtk.TRUE, expand=gtk.TRUE)
 
-        self._tabs.append( Roster_Tab(self, 'roster', roster) )
+        self._tabs.append( Roster_Tab(self, 'roster') )
 
         self.notebook.show()
         self.show()
@@ -497,20 +504,20 @@ class JabberClient(Jabber.Connection):
         ## Build the roster Tab ##
         self.roster = []
         r = self.requestRoster()
-        for jid in r.keys():
-                if r[jid]['subscription'] == 'both':
-                    status = 'offline'
-                else:
-                    status = 'pending'
-                jid = Jabber.JID(jid).getBasic()
-                found = 0
-                for item in self.roster:
-                    if item['jid'] == jid: found = 1
-                ##if jid and not roster.has_key(jid):
-                if not found:    
-                    self.roster.append( { 'jid':jid, 'status': status } )
-
-        self.gui = mainWindow("jabber app",roster=self.roster)
+#        for jid in r.keys():
+#                if r[jid]['subscription'] == 'both':
+#                    status = 'offline'
+#                else:
+#                    status = 'pending'
+#                jid = Jabber.JID(jid).getBasic()
+#                found = 0
+#                for item in self.roster:
+#                    if item['jid'] == jid: found = 1
+#                ##if jid and not roster.has_key(jid):
+#                if not found:    
+#                    self.roster.append( { 'jid':jid, 'status': status } )
+#
+        self.gui = mainWindow("jabber app",jabberObj=self)
 
         ##self.mainwin.addRosterTab(Roster_Tab,self.roster)
         ##self.mainwin.addDebugTab()

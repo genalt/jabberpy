@@ -229,9 +229,12 @@ class Client:
     
     def write(self,data_out=''):
         self.DEBUG("sending %s" % data_out)
-        self.__sock.send (data_out)
-        self.log(data_out, 'SENT:')
-        
+        try:
+            self.__sock.send (data_out)
+            self.log(data_out, 'SENT:')
+        except:
+            self.disconnected()
+            
     def process(self,timeout):
          ready_for_read, ready_for_write, err = select([self.__sock],[],[],timeout)
          if err:
@@ -249,6 +252,7 @@ class Client:
         self.__sock = None
         
     def disconnected(self): ## To be overidden ##
+        self.DEBUG("Network Disconnection")
         pass
 
 
