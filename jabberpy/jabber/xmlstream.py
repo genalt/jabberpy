@@ -376,7 +376,7 @@ class Stream(NodeBuilder):
             self.DEBUG("xmlstream write threw error",DBG_CONN_ERROR)
             self.disconnected()
             
-    def process(self,timeout):
+    def process(self, timeout=0):
         """Receives incoming data (if any) and processes it.
            Waits for data no more than timeout seconds."""
         if select([self._reader],[],[],timeout)[0]:
