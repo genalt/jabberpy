@@ -123,7 +123,7 @@ else:
 con.sendInitPresence()
 
 while(1):
-    inputs, outputs, errors = select([sys.stdin], [], [],0)
+    inputs, outputs, errors = select([sys.stdin], [], [],1)
     #inputs.extend(errors)
 
     if sys.stdin in inputs:

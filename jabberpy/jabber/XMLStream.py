@@ -24,16 +24,20 @@ class error:
     
 
 class XMLStreamNode:
-    def __init__(self,tag='',attrs={}, parent=None, data=''):
+    def __init__(self, tag='', parent=None, attrs=None ):
         bits = split(tag)
         if len(bits) == 1:
             self.name = tag
             self.namespace = ''
         else:
             self.namespace, self.name = bits
-        print "NAMESPACE: " + self.namespace
-        self.attrs = attrs
-        self.data = data
+
+        if attrs is None:
+            self.attrs = {}
+        else:
+            self.attrs = attrs
+            
+        self.data = ''
         self.kids = []
         self.parent = parent
         
@@ -74,7 +78,7 @@ class XMLStreamNode:
 
 
     def insertTag(self, name):
-        newnode = XMLStreamNode(tag=name, attrs={}, parent=self)
+        newnode = XMLStreamNode(tag=name, parent=self)
         self.kids.append(newnode)
         return newnode
 
@@ -151,10 +155,10 @@ class Client:
         self.__depth = self.__depth + 1
         self.DEBUG("DEPTH -> %i , tag -> %s, attrs -> %s" % (self.__depth, tag, str(attrs)) )
         if self.__depth == 2:
-            self._mini_dom = XMLStreamNode(tag,attrs)
+            self._mini_dom = XMLStreamNode(tag=tag, attrs=attrs)
             self._ptr = self._mini_dom
         elif self.__depth > 2:
-            self._ptr.kids.append(XMLStreamNode(tag,attrs,self._ptr))
+            self._ptr.kids.append(XMLStreamNode(tag=tag, parent=self._ptr, attrs=attrs ))
             self._ptr = self._ptr.kids[-1]
         else:                           ## it the stream tag:
             if attrs.has_key('id'):

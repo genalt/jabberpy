@@ -5,11 +5,9 @@ from string import split,find,replace
 False = 0;
 True  = 1;
 
-def getAnID():
-    ## need to figure out how to set static data ?
-    pass
 
 class Connection(XMLStream.Client):
+    
     def __init__(self, host, port=5222, debug=True, log=False):
         self.msg_hdlr  = None
         self.pres_hdlr = None
@@ -40,7 +38,7 @@ class Connection(XMLStream.Client):
             self.DEBUG("got message dispatch")
             
             msg_obj = Message(node=root_node)
-            self.messageHandler(msg_obj)
+            self.messageHandler(msg_obj) 
             
         elif root_node.name == 'presence':
             self.DEBUG("got presence dispatch")
@@ -53,13 +51,14 @@ class Connection(XMLStream.Client):
             ## Check for an error
             self.DEBUG("got an iq");
             iq_obj = Iq(node=root_node)
-            
-            if root_node.attrs['type'] == 'error':
-                for n in root_node.kids:
-                    if n.name == 'error':
-                        self.lastErr = n.data
-                        self.lastErrCode = n.attrs['code']
 
+            
+##            if root_node.attrs['type'] == 'error':
+##                for n in root_node.kids:
+##                    if n.name == 'error':
+##                        self.lastErr = n.data
+##                        self.lastErrCode = n.attrs['code']
+##
 
             #
             # TODO: change all below code to use node methods
@@ -108,73 +107,93 @@ class Connection(XMLStream.Client):
                                 self._agents[agent.attrs['jid']][info.name] = data
                 else:
                     pass
-                    
-            self.iqHandler(iq_obj)
-            
+
+            ## decide wether to fire off a 'callback' or set the protol obj ready for
+            ## return to a waitOnID style function
+                
+            if root_node.getAttr('id') and \
+               self._expected.has_key(root_node.getAttr('id')):
+                self._expected[root_node.getAttr('id')] = iq_obj
+            else:
+                self.iqHandler(iq_obj)
+
         else:
             self.DEBUG("whats a tag -> " + root_node.name)
 
-        if root_node.getAttr('id'):
-            self._expected[root_node.getAttr('id')] = root_node
-            
 
 
     def waitForResponse(self, ID):
-        while not self._expected.has_key(ID):
-            print "waiting on %s" % str(ID)
+        ID = str(ID)
+        self._expected[ID] = None
+        while not self._expected[ID]:
+            self.DEBUG("waiting on %s" % str(ID))
             self.process(0)
         response = self._expected[ID]
         del self._expected[ID]
-        return response ## needed ?
+        return response 
+
+    def SendAndWaitForResponse(self, obj, ID=None):
+        if ID is None :
+            ID = obj.getID()
+            if ID is None:
+                ID = getAnID()
+                obj.setID(ID)
+        ID = str(ID)
+        self.send(obj)
+        return self.waitForResponse(ID)
 
     def auth(self,username,passwd,resource):
+
         auth_get_iq = Iq(type='get')
         auth_get_iq.setID('auth-get')
         q = auth_get_iq.setQuery('jabber:iq:auth')
         q.insertTag('username').insertData(username)
         self.send(auth_get_iq)
-        auth_ret_node = self.waitForResponse("auth-get")
+        auth_ret_node = self.waitForResponse("auth-get").asNode()
+        auth_ret_query = auth_ret_node.getTag('query')
         self.DEBUG("auth-get node arrived!")
-
-        for child in auth_ret_node.getTag('query').getChildren():
-            self.DEBUG("---> %s" % ( child.getName() ) )
 
         auth_set_iq = Iq(type='set')
         auth_set_iq.setID('auth-set')
+        
         q = auth_set_iq.setQuery('jabber:iq:auth')
         q.insertTag('username').insertData(username)
         q.insertTag('resource').insertData(resource)
 
-        if auth_ret_node.getTag('query').getTag('digest'):
+        if auth_ret_query.getTag('token'):
+            
+            token = auth_ret_query.getTag('token').getData()
+            seq = int(auth_ret_query.getTag('sequence').getData())
+            self.DEBUG("zero-k authentication supported")
+            hash = sha.new(passwd).hexdigest()
+            hash = sha.new(hash+token).hexdigest()
+            for nout in seq: hash = sha.new(hash).hexdigest()
+            q.insertTag('hash').insertData(hash)
+
+        elif auth_ret_query.getTag('digest'):
             self.DEBUG("digest authentication supported")
             digest = q.insertTag('digest')
             digest.insertData(sha.new(
-                self.getStreamID() + passwd).hexdigest()
-                              )
+                self.getStreamID() + passwd).hexdigest() )
         else:
             q.insertTag('password').insertData(passwd)
+            
         self.DEBUG("sending %s" % ( str ) )
 
-        # back on track
-        self.send(auth_set_iq) ## TODO: improve for wait !!
 
+        iq_result = self.SendAndWaitForResponse(auth_set_iq)
+        if iq_result.getError() is None:
+            return True
+        else:
+           self.lastErr     = iq_result.getError()
+           self.lastErrCode = iq_result.getErrorCode()
+           return False
 
         ## TODO: imporve !!!!!!!!!
-        if (find(self.read(),'error') == -1):     
+        if iq_result.getError:     
             return True
         else:
             return False
-
-
-##        str =  u"<iq type='set'>                    \
-##                <query xmlns='jabber:iq:auth'><username>%s</username><password>%s</password> \
-##                <resource>%s</resource></query></iq>" % ( username,passwd,resource )
-##        self.send(str)
-##        if (find(self.read(),'error') == -1):         ## this will fire off a callback for ok ? 
-##            return True
-##        else:
-##            return False
-##
 
     def requestRoster(self):
         id = self.getAnID()
@@ -208,7 +227,9 @@ class Connection(XMLStream.Client):
 ##             XMLStream.Client.write(self,str(what))
 ##
     def sendInitPresence(self):
-        self.send("<presence/>");
+        p = Presence()
+        print p
+        self.send(p);
 
     def setMessageHandler(self, func):
         self.msg_hdlr = func
@@ -307,7 +328,7 @@ class Protocol:
 
 
 class Message(Protocol):
-    def __init__(self, to='', body='', node=None):
+    def __init__(self, to=None, body=None, node=None):
         ##self.frm = 'mallum@jabber.com'
         if node:
             self._node = node
@@ -334,9 +355,13 @@ class Message(Protocol):
         except: return None
         
     def getError(self):
-        pass
+        try: return self._node.getTag('error').data
+        except: return None
+
     def getErrorCode(self):
-        pass
+        try: return self._node.getTag('error').getAttr('code')
+        except: return None
+
     def getTimestamp(self):
         pass
 
@@ -354,14 +379,29 @@ class Message(Protocol):
         else:
             self._node.insertTag('subject').putData(val)
 
-    def setThread(self,val): pass
-    def setError(self,val): pass
-    def setErrorCode(self,val): pass
+    def setThread(self,val): 
+        thread = self._node.getTag('thread')
+        if thread:
+            thread.putData(val)
+        else:
+            self._node.insertTag('thread').putData(val)
+
+    def setError(self,val,code): 
+        err = self._node.getTag('error')
+        if err:
+            err.putData(val)
+        else:
+            err = self._node.insertTag('thread').putData(val)
+        err.setAttr('code',str(code))
+
     def setTimestamp(self,val): pass
 
     
     def build_reply(self, reply_txt=''):
-        return Message(to=self.getFrom(), body=reply_txt)
+        m = Message(to=self.getFrom(), body=reply_txt)
+        t = self.getThread()
+        if t: m.setThread(t)
+        return m
 
 
 
@@ -418,7 +458,22 @@ class Iq(Protocol):
             self._node = XMLStream.XMLStreamNode(tag='iq')
         if to: self.setTo(to)
         if type: self.setType(type)
-        
+
+    def getError(self):
+        try: return self._node.getTag('error').data
+        except: return None
+
+    def getErrorCode(self):
+        try: return self._node.getTag('error').getAttr('code')
+        except: return None
+
+    def setError(self,val,code): 
+        err = self._node.getTag('error')
+        if err:
+            err.putData(val)
+        else:
+            err = self._node.insertTag('thread').putData(val)
+        err.setAttr('code',str(code))
 
     def getQuery(self):
         "returns the query namespace"
