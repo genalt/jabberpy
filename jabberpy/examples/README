@@ -7,9 +7,10 @@ jrpc.py
   - Combining jabber and XML-RPC.
 
 pygtkjab.py
-  - An 'in-progress' pygtk based client. Very alpha !
+  - An 'in-progress' pygtk based client.
 
-To run these examples without installing jabberpy, from your shell do a
+pyqtjab.py
+  - A simple pyQt client. 
 
-export PYTHONPATH="../"
-
+mailchecker.py
+  - A component example

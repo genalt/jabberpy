@@ -514,6 +514,7 @@ class Client(Connection):
         else:
            self.lastErr     = iq_result.getError()
            self.lastErrCode = iq_result.getErrorCode()
+           # raise error(iq_result.getError()) ?
            return False
 
     ## Roster 'helper' func's - also see the Roster class ##

@@ -439,6 +439,7 @@ class Stream:
         for s in ready_for_read:
             if s == reader:
                 if not len(self.read()): # length of 0 means disconnect
+                    ## raise error("network error") ?
                     self.disconnected()
                     return False
                 return True

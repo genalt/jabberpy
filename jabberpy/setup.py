@@ -21,8 +21,8 @@ setup(name="jabber.py",
       description="Python xmlstream and jabber IM protocol libs",
       author="Matthew Allum",
       author_email="breakfast@10.am",
-      url="http://www.sourceforge.net/projects/jabber.py",
-      license="GPL"
+      url="http://jabberpy.sf.net/",
+      license="LGPL"
       )
 
 

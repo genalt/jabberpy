@@ -8,7 +8,7 @@ body {font-size:12px;font-family:verdana,sans-serif;color:black;}
 </style>
 <body>
 
-<h1>jabber.py - A Python Jabber library</h1>
+<h1><img src="img/logo-56-80.png" width=56 height=80 border=0 border=0>jabber.py - A Python Jabber library</h1>
 |<a href="#intro">Introduction</a>|<a href="#news">News</a>|<a href="#status">Status</a>|<a href="#download">Download</a>|<a href="#docs">Documentation</a>|<a href="#links">Links</a>|
 <p>
 <a name="into"><h2>Introduction</h2></a>
@@ -37,13 +37,15 @@ jabber.py is released under the LGPL license.
 <p>
 This new release includes;
 <ul>
-<li> <strong>Many</strong> bug fixes</li>
+<li> <strong>Many</strong> bug fixes, including encoding problems.</li>
 <li> License change to LGPL</li>
-<li> Component support ( and examples ) </li>
+<li> Component support ( and example ) </li>
 <li> Improved Roster / JID / X 'payload' support </li>
 <li> Stackable handlers </li>
+<li> SSL support </li>
 <li> A maturing pygtk 'demo' client</li>
 <li> A pyQt client </li>
+
 </ul>
 </p>
 <strong>01-2002 jabberpy at python10</strong>
@@ -55,7 +57,7 @@ For more infomation see the 'web services' track at the <a href="http://www.pyth
 <strong>10-09-2001 0.2 released</strong>
 <p>
 Many improvements including documentation, Roster funcs, 
-iq query payload methods, new and improved examples and
+iq query payload methods, SSL new and improved examples and
 bug fixes. 
 </p>
 </blockquote>
@@ -65,7 +67,7 @@ bug fixes.
 <a name="status"><h2>Status</h2></a>
 <blockquote>
 
-<p>0.3 provides support for all basic protocol elements, roster management, authentication ( plain, digest and zero-k ), registration, agents, compents and 'X payloads' . 
+<p>0.3 provides support for all basic protocol elements, roster management, authentication ( plain, digest and zero-k ), SSL, registration, agents, compents and 'X payloads' . 
 <p>
 It also includes a few example scripts including a simple command line client, a pyQt client, a pyGTK client, a mail checker component and an jabber-xmlrpc example.</p>
 
@@ -116,12 +118,16 @@ Also check the <a href="http://sourceforge.net/mail/?group_id=30215">mailing lis
 <h2>Author</h2>
 <blockquote>
 Matthew Allum - breakfast@10.am<br>
-Also thanks to DJ Adams for help with some of the finer parts of the protocol implementation.
+
 </blockquote>
 <p>
 <img src="img/jabber-powered-20.png" width=136 height=20 border=0>
 </p>
-<center><small>Copyright Matthew Allum 2001</small></center> 
+<center><small>
+Copyright Matthew Allum 2001<br>
+Logo by James Stiff - eyefudge@hotmail.com 
+
+</small></center> 
 
 </body>
 </html>
