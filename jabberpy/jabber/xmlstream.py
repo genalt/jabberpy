@@ -37,7 +37,7 @@ import xml.parsers.expat
 import debug
 _debug=debug
 
-VERSION = "0.5-rc1"
+VERSION = "0.5"
 
 False = 0
 True  = 1
