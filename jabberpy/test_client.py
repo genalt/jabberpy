@@ -33,7 +33,10 @@ def doCmd(con,txt):
             con.send(Jabber.Presence(to, type))
         elif cmd[0] == '/roster':
             con.requestRoster()
-            print "ROSTER IS ",con.getRoster()
+            roster_simple = con.getRoster().getSummary()
+            for jid in roster_simple.keys():
+                print colorize("%s :: %s" % ( jid, roster_simple[jid] ) , 'blue' )
+
         elif cmd[0] == '/agents':
             print con.requestAgents()
         elif cmd[0] == '/register':
@@ -155,10 +158,10 @@ if len(sys.argv) == 2:
            info != u'key':
             print "enter %s;" % info
             con.setRegInfo( info,strip(sys.stdin.readline()) )
-        con.sendRegInfo()
-        req = con.getRegInfo()
-        Username = req['username']
-        Password = req['password']
+    con.sendRegInfo()
+    req = con.getRegInfo()
+    Username = req['username']
+    Password = req['password']
 else:
     Username = sys.argv[2]
     Password = sys.argv[3]
@@ -174,7 +177,10 @@ else:
     print "eek -> ", con.lastErr, con.lastErrCode
     sys.exit(1)
 
+print colorize("Requesting Roster Info" , 'red')
+con.requestRoster()
 con.sendInitPresence()
+print colorize("Ok, ready" , 'red')
 
 JID = Username + '@' + Server + '/' + Resource
 

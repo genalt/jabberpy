@@ -1,6 +1,7 @@
 """\
 TODO: Documentation will be here
 
+IDEA! write a google bot an an example !
 
 """
 import XMLStream
@@ -51,7 +52,7 @@ class Connection(XMLStream.Client):
         self.pres_hdlr = None
         self.iq_hdlr   = None
 
-        self._roster = {}
+        self._roster = Roster()
         self._agents = {}
         self._reg_info = {}
         self._reg_agent = ''
@@ -68,12 +69,10 @@ class Connection(XMLStream.Client):
 
         self._id = self._id + 1
         return str(self._id)
-    
 
     def disconnect(self):
         self.send(Presence(type='unavailable'));
         XMLStream.Client.disconnect(self)
-    
 
     def dispatch(self, root_node ):
 
@@ -88,6 +87,19 @@ class Connection(XMLStream.Client):
 
             self.DEBUG("got presence dispatch")
             pres_obj = Presence(node=root_node)
+
+            who = str(pres_obj.getFrom())
+            type = pres_obj.getType()
+            if type == 'available' or type == None:
+                self._roster._setOnline(who,'online')
+                self._roster._setShow(who,pres_obj.getShow())
+                self._roster._setStatus(who,pres_obj.getStatus())
+            elif type == 'unavailable':
+                self._roster._setOnline(who,'online')
+                self._roster._setShow(who,pres_obj.getShow())
+                self._roster._setStatus(who,pres_obj.getStatus())
+            else:
+                pass
             self.presenceHandler(pres_obj)
 
             
@@ -100,6 +112,7 @@ class Connection(XMLStream.Client):
             if queryNS and root_node.getAttr('type') == 'result':
 
                 if queryNS == NS_ROSTER: 
+
                     for item in iq_obj.getQueryNode().getChildren():
                         jid  = item.getAttr('jid')
                         name = item.getAttr('name')
@@ -107,14 +120,11 @@ class Connection(XMLStream.Client):
                         ask  = item.getAttr('ask')
                         if jid:
                             if sub == 'remove':
-                                try: del self._roster[jid]  
-                                except: self.DEBUG("roster remove - jid not defined ?")
+                                self._roster._remove(jid)
                             else:
-                                self._roster[jid] = \
-                                { 'name': name, 'ask': ask, 'subscription': sub }
+                                self._roster._set(jid=jid,name=name,sub=sub,ask=ask)
                         else:
                             self.DEBUG("roster - jid not defined ?")
-                        self.DEBUG("roster => %s" % self._roster)
                         
                 elif queryNS == NS_REGISTER:
 
@@ -134,9 +144,6 @@ class Connection(XMLStream.Client):
                                          = info.getData()
                 else:
                     pass
-
-            ## decide wether to fire off a 'callback' or set the protol obj ready for
-            ## return to a waitOnID style function
                 
             if root_node.getAttr('id') and \
                self._expected.has_key(root_node.getAttr('id')):
@@ -215,7 +222,7 @@ class Connection(XMLStream.Client):
            return False
 
     def requestRoster(self):
-        self._roster = {} 
+        #self._roster = {} 
         rost_iq = Iq(type='get')
         rost_iq.setQuery('jabber:iq:roster')
         self.SendAndWaitForResponse(rost_iq)
@@ -502,59 +509,110 @@ class Iq(Protocol):
             self._node.insertTag('query').putData(val)
 
 class Roster:
-    """Class should be considered readonly ! when passed a full JID None
-       or Val is returned. When passed a recourceless jid str a hash is
-       returned for each resource???"""
     def __init__(self):
         self._data = {}
     
     def getStatus(self, jid): ## extended
-        pass
+        if self._data.has_key(jid):
+            return self._data[jid]['status']
+        return None
 
     def getShow(self, jid):   ## extended
-        pass
+        if self._data.has_key(jid):
+            return self._data[jid]['show']
+        return None
 
     def getOnline(self,jid):  ## extended 
-        """Given a full jid object it will return the status for that
-           resource. Given a 'basic' jid str it will return a list of
-           resources for that jid that are online. Returns none for
-           not online"""
-        pass
+        if self._data.has_key(jid):
+            return self._data[jid]['online']
+        return None
     
     def getSub(self,jid):
-        pass
+        if self._data.has_key(jid):
+            return self._data[jid]['sub']
+        return None
 
     def getName(self,jid):
-        pass
+        if self._data.has_key(jid):
+            return self._data[jid]['name']
+        return None
 
-    def getAdd(self,jid):
-        pass
+    def getAsk(self,jid):
+        if self._data.has_key(jid):
+            return self._data[jid]['ask']
+        return None
 
     def getSummary(self):
         """Returns a list of basic ( no resource ) JID's with there
            'availability' - online, offline, pending """
-        pass
+        to_ret = {}
+        for jid in self._data.keys():
+            to_ret[jid] = self._data[jid]['online']
+        print "hello", to_ret
+        return to_ret
+
+    def getRaw(self):
+        return self._data
     
-    def _add(self,jid,name,sub,add):
-        pass
-        
+    def _set(self,jid,name,sub,ask): # meant to be called by actual iq tag
+        jid = str(jid) # just in case
+        if self._data.has_key(jid): # update it
+            self._data[jid]['name'] = name
+            self._data[jid]['ask'] = ask
+            self._data[jid]['sub'] = sub
+        else:
+            self._data[jid] = { 'name': name, 'ask': ask, 'sub': sub,
+                                'online': '?', 'status': None, 'show': None} 
+
+    def _setOnline(self,jid,val):
+        if self._data.has_key(jid):
+            self._data[jid]['online'] = val
+        else:                      ## fall back 
+            jid_basic = JID(jid).getBasic()
+            if self._data.has_key(jid_basic):
+                ## maybe this should be set to list of resources ?
+                print "----> %s %s" % ( jid_basic, val )
+                self._data[jid_basic]['online'] = val
+
+    def _setShow(self,jid,val):
+        if self._data.has_key(jid):
+            self._data[jid]['show'] = val 
+        else:                      ## fall back 
+            jid_basic = JID(jid).getBasic()
+            if self._data.has_key(jid_basic):
+                ## maybe this should be set to list of online resources ? 
+                self._data[jid_basic]['show'] = val
 
 
+    def _setStatus(self,jid,val):
+        if self._data.has_key(jid):
+            self._data[jid]['status'] = val
+        else:                      ## fall back 
+            jid_basic = JID(jid).getBasic()
+            if self._data.has_key(jid_basic):
+                ## maybe this should be set to list of online resources ? 
+                self._data[jid_basic]['status'] = val
 
-class JID: ## !! TODO: integrate into rest of lib ? !! ##
-    def __init__(self, jid=None, node=None, domain='default'
-                 , resource='default'):
+
+    def _remove(self,jid):
+        if self._data.has_key(jid): del self._data[jid]
+
+class JID:
+    def __init__(self, jid='', node='', domain='', resource=''):
         if jid:
-            try:
+            if find(jid, '@') == -1:
+                self.node = ''
+            else:
                 bits = split(jid, '@')
                 self.node = bits[0]
-                if find(bits[1], '/') == -1:
-                    self.domain = bits[1]
-                    self.resource = 'default'
-                else:
-                    self.domain, self.resource = split(bits[1], '/') 
-            except:
-                return None
+                jid = bits[1]
+                
+            if find(jid, '/') == -1:
+                self.domain = jid
+                self.resource = ''
+            else:
+                self.domain, self.resource = split(jid, '/') 
+
         else:
             self.node = node
             self.domain = domain
@@ -562,7 +620,11 @@ class JID: ## !! TODO: integrate into rest of lib ? !! ##
 
     def __str__(self):
         try:
-            return self.node + '@' + self.domain + '/' + self.resource
+            jid_str = ''
+            if self.node: jid_str = jid_str + self.node + '@'
+            if self.domain: jid_str = jid_str + self.domain
+            if self.resource: jid_str = jid_str +'/'+ self.resource
+            return jid_str
         except:
             return ''
 
@@ -575,9 +637,11 @@ class JID: ## !! TODO: integrate into rest of lib ? !! ##
     def getResource(self,val): self.resource = val
 
     def getBasic(self): ## find beter name ##
-        try:
-            return self.node + '@' + self.domain
-        except:
-            return ''
+        jid_str = ''
+        if self.node: jid_str = jid_str + self.node + '@'
+        if self.domain: jid_str = jid_str + self.domain
+        return jid_str
+
+
 
 
