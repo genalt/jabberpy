@@ -126,7 +126,7 @@ class Node:
 
     def getData(self):
         "Return the nodes textual data" 
-        return join(self.data)
+        return join(self.data, '')
 
     def getDataAsParts(self):
         "Return the node data as an array" 
