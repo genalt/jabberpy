@@ -523,4 +523,5 @@ class JID: ## !! TODO: integrate into rest of lib ? !! ##
     def getDomain(self,val): self.domain = val
     def getResource(self,val): self.resource = val
 
-
+    def getBasic(self): ## find beter name ##
+        return self.node + '@' + self.domain
