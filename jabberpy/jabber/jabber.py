@@ -64,7 +64,7 @@ An example of usage for a simple client would be ( only psuedo code !)
 # $Id$
 
 import xmlstream
-import sha
+import sha, time
 from string import split,find,replace
 
 VERSION = 0.2
@@ -131,6 +131,7 @@ class Connection(xmlstream.Client):
         self.pres_hdlrs = []
         
         self.disconnect_hdlr = None
+        self._expected = {}
         
         self._id = 0;
         
@@ -183,7 +184,11 @@ class Connection(xmlstream.Client):
 
             self.DEBUG("got an iq");
             iq_obj = Iq(node=root_node)
-            self.iqHandler(iq_obj)
+            if root_node.getAttr('id') and \
+               self._expected.has_key(root_node.getAttr('id')):
+                self._expected[root_node.getAttr('id')] = iq_obj
+            else:
+                self.iqHandler(iq_obj)
 
         else:
             self.DEBUG("whats a tag -> " + root_node.name)
@@ -259,15 +264,31 @@ class Connection(xmlstream.Client):
 
     ## functions for sending element with ID's ##
 
-    def waitForResponse(self, ID):
-        """Blocks untils a protocol element with ID id is recieved"""
+    def waitForResponse(self, ID, timeout=0):
+        """Blocks untils a protocol element with ID id is recieved.
+           If an error is recieved or a timeout occurs ( only if timeout attr
+           is set, None is returned with lastErr set to the error"""
         ID = str(ID)
         self._expected[ID] = None
-        while not self._expected[ID]:
+        then = time.time()
+        has_timed_out = False
+        ## TODO , add a timeout
+        while (not self._expected[ID]) or has_timed_out:
             self.DEBUG("waiting on %s" % str(ID))
             self.process(1)
+            if timeout and time.time()-then > timeout:
+                has_timed_out = True
+                
+        if has_timed_out:
+            self.lastErr = "Timeout"
+            return None
         response = self._expected[ID]
         del self._expected[ID]
+        if response.getErrorCode():
+            self.lastErr     = response.getError()
+            self.lastErrCode = response.getErrorCode()
+            return None
+
         return response 
 
     def SendAndWaitForResponse(self, obj, ID=None):
@@ -440,6 +461,8 @@ class Client(Connection):
         q = auth_get_iq.setQuery('jabber:iq:auth')
         q.insertTag('username').insertData(username)
         self.send(auth_get_iq)
+        
+        ## TODO fix for timeout and errors ...
         auth_ret_node = self.waitForResponse("auth-get").asNode()
         auth_ret_query = auth_ret_node.getTag('query')
         self.DEBUG("auth-get node arrived!")
@@ -471,6 +494,7 @@ class Client(Connection):
             q.insertTag('password').insertData(passwd)
             
         iq_result = self.SendAndWaitForResponse(auth_set_iq)
+        ## fix here for error too
         if iq_result.getError() is None:
             return True
         else:
@@ -555,72 +579,72 @@ class Client(Connection):
 
     ## Call back stuff ###
 
-    def setMessageHandler(self, func):
-        """Set the callback func for recieving messages"""
-        self.msg_hdlr = func
-
-    def setPresenceHandler(self, func):
-        """Set the callback func for recieving presence"""
-        self.pres_hdlr = func
-
-    def setIqHandler(self, func):
-        """Set the callback func for recieving iq's"""
-        self.iq_hdlr = func
-
-    def setDisconnectHandler(self, func):
-        """Set the callback for a disconnect"""
-        self.disconnect_hdlr = func
-
-    def messageHandler(self, msg_obj):   ## Overide If You Want ##
-        """Called when a message protocol element is recieved - can be
-           overidden"""
-        if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
-        
-    def presenceHandler(self, pres_obj): ## Overide If You Want ##
-        """Called when a pressence protocol element is recieved - can be
-           overidden"""
-        if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
- 
-    def iqHandler(self, iq_obj):         ## Overide If You Want ##
-        """Called when an iq protocol element is recieved - can be
-           overidden"""
-        if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
-
-    def disconnected(self):
-        """Called when a network error occurs - can be overidden"""
-        if self.disconnect_hdlr != None: self.disconnect_hdlr(self)
-
+##    def setMessageHandler(self, func):
+##        """Set the callback func for recieving messages"""
+##        self.msg_hdlr = func
+##
+##    def setPresenceHandler(self, func):
+##        """Set the callback func for recieving presence"""
+##        self.pres_hdlr = func
+##
+##    def setIqHandler(self, func):
+##        """Set the callback func for recieving iq's"""
+##        self.iq_hdlr = func
+##
+##    def setDisconnectHandler(self, func):
+##        """Set the callback for a disconnect"""
+##        self.disconnect_hdlr = func
+##
+##    def messageHandler(self, msg_obj):   ## Overide If You Want ##
+##        """Called when a message protocol element is recieved - can be
+##           overidden"""
+##        if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
+##        
+##    def presenceHandler(self, pres_obj): ## Overide If You Want ##
+##        """Called when a pressence protocol element is recieved - can be
+##           overidden"""
+##        if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
+## 
+##    def iqHandler(self, iq_obj):         ## Overide If You Want ##
+##        """Called when an iq protocol element is recieved - can be
+##           overidden"""
+##        if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
+##
+##    def disconnected(self):
+##        """Called when a network error occurs - can be overidden"""
+##        if self.disconnect_hdlr != None: self.disconnect_hdlr(self)
+##
 
     ## functions for sending element with ID's ##
 
-    def waitForResponse(self, ID):
-        """Blocks untils a protocol element with ID id is recieved"""
-        ID = str(ID)
-        self._expected[ID] = None
-        while not self._expected[ID]:
-            self.DEBUG("waiting on %s" % str(ID))
-            self.process(1)
-        response = self._expected[ID]
-        del self._expected[ID]
-        return response 
-
-    def SendAndWaitForResponse(self, obj, ID=None):
-        """Sends a protocol element object and blocks until a response with
-           the same ID is recieved"""
-        if ID is None :
-            ID = obj.getID()
-            if ID is None:
-                ID = self.getAnID()
-                obj.setID(ID)
-        ID = str(ID)
-        self.send(obj)
-        return self.waitForResponse(ID)
-
-    def getAnID(self):
-        """Returns a unique ID"""
-        self._id = self._id + 1
-        return str(self._id)
-
+##    def waitForResponse(self, ID):
+##        """Blocks untils a protocol element with ID id is recieved"""
+##        ID = str(ID)
+##        self._expected[ID] = None
+##        while not self._expected[ID]:
+##            self.DEBUG("waiting on %s" % str(ID))
+##            self.process(1)
+##        response = self._expected[ID]
+##        del self._expected[ID]
+##        return response 
+##
+##    def SendAndWaitForResponse(self, obj, ID=None):
+##        """Sends a protocol element object and blocks until a response with
+##           the same ID is recieved"""
+##        if ID is None :
+##            ID = obj.getID()
+##            if ID is None:
+##                ID = self.getAnID()
+##                obj.setID(ID)
+##        ID = str(ID)
+##        self.send(obj)
+##        return self.waitForResponse(ID)
+##
+##    def getAnID(self):
+##        """Returns a unique ID"""
+##        self._id = self._id + 1
+##        return str(self._id)
+##
 
 class Protocol:
     """Base class for jabber 'protocol elements' - messages, presences and iqs.

@@ -1,5 +1,12 @@
 #!/usr/bin/env python2
 
+#
+# TODO:
+#   -- fix mass transport subscribe crash ??
+#   -- implement group chat
+#   -- catch errors better with dialog to show em.
+#
+
 import gtk, _gtk, GDK
 import jabber
 import sys,string,os,re
