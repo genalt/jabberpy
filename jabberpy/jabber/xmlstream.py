@@ -156,12 +156,12 @@ class Node:
         "Set the nodes namespace." 
         self.namespace = namespace
 
-    def insertTag(self, name):
+    def insertTag(self, name=None, attrs=None, payload=None, node=None):
         """ Add a child tag of name 'name' to the node.
 
             Returns the newly created node.
         """
-        newnode = Node(tag=name, parent=self)
+        newnode = Node(tag=name, parent=self, attrs=attrs, payload=payload, node=node)
         self.kids.append(newnode)
         return newnode
 
@@ -219,10 +219,21 @@ class Node:
                nodes.append(node)
         return nodes
         
-
     def getChildren(self):
         """Returns a nodes children"""
         return self.kids
+
+    def removeTag(self,tag):
+        """Pops out specified child and returns it."""
+        if type(tag)==type(self):
+            try:
+                self.kids.remove(tag)
+                return tag
+            except: return None
+        for node in self.kids:
+            if node.getName()==tag:
+                self.kids.remove(node)
+                return node
 
 class NodeBuilder:
     """builds a 'minidom' from data parsed to it. Primarily for insertXML
@@ -297,8 +308,6 @@ class Stream(NodeBuilder):
                  id=None,
                  timestampLog=True):
 
-        NodeBuilder.__init__(self)
-
         self._namespace = namespace
 
         self._read , self._reader , self._write = None , None , None
@@ -323,6 +332,10 @@ class Stream(NodeBuilder):
         else:
             self._logFH = None
         self._timestampLog = timestampLog
+
+    def connect(self):
+        NodeBuilder.__init__(self)
+        self._dispatch_depth = 2
 
     def timestampLog(self,timestamp):
         """ Enable or disable the showing of a timestamp in the log.
@@ -435,6 +448,7 @@ class Client(Stream):
         self.DEBUG("client connect called to %s %s type %i" % (self._host,
                                                                self._port,
                                                                self._connection), DBG_INIT )
+        Stream.connect(self)
 
         ## TODO: check below that stdin/stdout are actually open
         if self._connection == STDIO:
