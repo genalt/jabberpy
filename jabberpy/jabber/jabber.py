@@ -954,7 +954,7 @@ class Message(Protocol):
         self.time_stamp = val
 
 
-    def build_reply(self, reply_txt=''):
+    def buildReply(self, reply_txt=''):
         """Returns a new Message object as a reply to itself.
            The reply message has the 'to', 'type' and 'thread' attributes
            automatically set."""
@@ -964,6 +964,10 @@ class Message(Protocol):
         t = self.getThread()
         if t: m.setThread(t)
         return m
+
+    def build_reply(self, reply_txt=''):
+        print "WARNING: build_reply method is obsolette. Use buildReply instead."
+        return self.buildReply(reply_txt)
 
 #############################################################################
 
