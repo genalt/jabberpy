@@ -161,7 +161,7 @@ class Connection(XMLStream.Client):
             seq = auth_ret_query.getTag('sequence').getData()
             self.DEBUG("zero-k authentication supported")
             hash = sha.new(sha.new(passwd).hexdigest()+token).hexdigest()
-            for foo in seq: hash = sha.new(hash).hexdigest()
+            for foo in xrange(int(seq)): hash = sha.new(hash).hexdigest()
             q.insertTag('hash').insertData(hash)
 
         elif auth_ret_query.getTag('digest'):
@@ -205,7 +205,6 @@ class Connection(XMLStream.Client):
 
     def sendInitPresence(self):
         p = Presence()
-        print p
         self.send(p);
 
     def getRoster(self):
