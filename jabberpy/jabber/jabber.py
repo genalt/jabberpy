@@ -240,28 +240,30 @@ class Connection(xmlstream.Client):
         """Called internally when a 'protocol element' is received.
            Builds the relevant jabber.py object and dispatches it
            to a relevant function or callback."""
-        self.DEBUG("dispatch called",DBG_DISPATCH)
         name=stanza.getName()
         if not self.handlers.has_key(name):
             self.DEBUG("whats a tag -> " + name,DBG_NODE_UNKNOWN)
             name='unknown'
         else:
             self.DEBUG("Got %s stanza"%name, DBG_NODE)
-    
+
         stanza=self.handlers[name][type](node=stanza)
 
         typ=stanza.getType()
-        if not self.handlers[name].has_key(typ): typ=''
         try:
             ns=stanza.getQuery()
-            if not self.handlers[name][typ].has_key(ns): ns=''
+            if not ns: ns=''
         except: ns=''
+        typns=typ+ns
+        if not self.handlers[name].has_key(ns): ns=''
+        if not self.handlers[name].has_key(typ): typ=''
+        if not self.handlers[name].has_key(typns): typns=''
 
-        chain=self.handlers[name]['']		# we will take use all handlers: from very common...
-        if typ: chain+=self.handlers[name][typ]
-        if ns:
-            chain+=self.handlers[name][ns]
-            if typ: chain+=self.handlers[name][typ+ns]	# ... to very particular
+        self.DEBUG("dispatch called for: name->%s ns->%s"%(name,ns),DBG_DISPATCH)
+
+        chain=[]
+        for key in ['default',typ,ns,typns]: # we will use all handlers: from very common to very particular
+            if key: chain += self.handlers[name][key]
 
         output=''
         user=True
@@ -283,7 +285,7 @@ class Connection(xmlstream.Client):
                 if received_packet.getName()==tag_name:
                     stanza = Proto(node = received_packet)
         """
-        self.handlers[tag_name]={type:Proto, '':[]}
+        self.handlers[tag_name]={type:Proto, 'default':[]}
 
     def registerHandler(self,name,handler,type='',ns='',chained=False, makefirst=False, system=False):
         """Sets the callback func for processing incoming stanzas.
@@ -317,6 +319,7 @@ class Connection(xmlstream.Client):
            and namespace scope. Note that handlers for particular type or namespace always
            have lower priority that common handlers.
         """
+        if not type and not ns: type='default'
         if not self.handlers[name].has_key(type+ns): self.handlers[name][type+ns]=[]
         if makefirst: self.handlers[name][type+ns].insert({'chain':chained,'func':handler,'system':system})
         else: self.handlers[name][type+ns].append({'chain':chained,'func':handler,'system':system})
@@ -669,7 +672,6 @@ class Client(Connection):
         agents_iq = Iq(type='get')
         agents_iq.setQuery(NS_AGENTS)
         self.SendAndWaitForResponse(agents_iq)
-        self.DEBUG("got agents response",DBG_NODE_IQ)
         self.DEBUG("agents -> %s" % ustr(self._agents),DBG_NODE_IQ)
         return self._agents
 
