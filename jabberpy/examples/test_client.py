@@ -12,7 +12,7 @@ import sys,os
 
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
-import jabber
+import jabber,xmlstream
 
 True = 1
 False = 0
@@ -183,7 +183,9 @@ Password = ''
 Resource = 'default'
 
 
-con = jabber.Client(host=Server,debug=True ,log=sys.stderr)
+#con = jabber.Client(host=Server,debug=True ,log=sys.stderr)
+con = jabber.Client(host=Server,debug=True ,log=sys.stderr,
+                    port=5223, connection=xmlstream.TCP_SSL)
 try:
     con.connect()
 except IOError, e:

@@ -425,8 +425,10 @@ class Stream:
         
         reader=Node
 
-        if self._connection == TCP:
+        if self._connection == TCP: 
             reader = self._sock
+        elif self._connection == TCP_SSL:
+            reader = self._sslObj
         elif self._connection == STDIO:
             reader = sys.stdin
         else:
@@ -475,18 +477,18 @@ class Client(Stream):
 
     def connect(self):
         """Attempt to connect to specified host"""
-        ## TODO: check below that stdin/stdout are actually open
-        
+
         self.DEBUG("client connect called to %s %s" % (self._host,
                                                        self._port) )
 
+        ## TODO: check below that stdin/stdout are actually open
         if self._connection == STDIO: return
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self._sock.connect((self._host, self._port))
         except socket.error, e:			  
-            seld.DEBUG("socket error")
+            self.DEBUG("socket error")
             raise error(e)
 
         if self._connection == TCP_SSL:
