@@ -33,7 +33,7 @@ case.
 import xmllib, time, sys, re, site
 from socket import socket, AF_INET, SOCK_STREAM
 from select import select
-from string import split,find,replace
+from string import split,find,replace,join
 import xml.parsers.expat
 
 VERSION = 0.2
@@ -87,7 +87,7 @@ class Node:
         else:
             self.attrs = attrs
             
-        self.data = ''
+        self.data = []
         self.kids = []
         self.parent = parent
         
@@ -118,15 +118,20 @@ class Node:
         
     def putData(self, data):
         "Set the nodes textual data" 
-        self.data = XMLescape(data)
+        self.data.append(XMLescape(data))
 
     def insertData(self, data):
         "Set the nodes textual data" 
-        self.data = XMLescape(data)
+        self.data.append(XMLescape(data))
 
     def getData(self):
         "Return the nodes textual data" 
-        return XMLunescape(self.data)
+        return XMLunescape(join(self.data))
+
+    def getDataAsParts(self):
+        "Return the node data as an array" 
+        return self.data
+
 
     def getNamespace(self):
         "Returns the nodes namespace." 
@@ -166,10 +171,14 @@ class Node:
         for key in self.attrs.keys():
             val = str(self.attrs[key])
             s = s + " %s='%s'" % ( key, XMLescape(val) )
-        s = s + ">" + XMLescape(self.data)
+        s = s + ">"
+        cnt = 0 
         if self.kids != None:
             for a in self.kids:
+                if (len(self.data)-1) >= cnt: s = s + XMLescape(self.data[cnt])
                 s = s + a._xmlnode2str(parent=self)
+                cnt=cnt+1
+        if (len(self.data)-1) >= cnt: s = s + XMLescape(self.data[cnt])
         s = s + "</" + self.name + ">"
         return s
 
@@ -233,7 +242,7 @@ class NodeBuilder:
 
     def handle_data(self, data):
         if not self.__space_regex.match(data):  ## check its not all blank 
-            self._ptr.data = self._ptr.data + data 
+            self._ptr.data.append(data)
 
     def dispatch(self,dom):
         self.__done = 1
@@ -306,7 +315,8 @@ class Stream:
         """XML Parser callback"""
         self.DEBUG("data-> " + data)
         ## TODO: get rid of empty space
-        self._ptr.data = self._ptr.data + data 
+        ## self._ptr.data = self._ptr.data + data 
+        self._ptr.data.append(data)
         
     def _unknown_starttag(self, tag, attrs):
         """XML Parser callback"""
