@@ -1173,17 +1173,55 @@ class JID:
         if self.domain: jid_str = jid_str + self.domain
         return jid_str
 
+## component protocol elements
 
+class XDB(Protocol):
+    
+    def __init__(self, to='', frm='', type=None, node=None):
+        if node:
+            self._node = node
+        else:
+            self._node = xmlstream.Node(tag='xdb')
+        if to: self.setTo(to)
+        if type: self.setType(type)
+        if frm: self.setFrom(type)
+
+
+class Log(Protocol):
+    ## eg: <log type='warn' from='component'>Hello Log File</log>
+    
+    def __init__(self, to='', frm='', type=None, node=None):
+        if node:
+            self._node = node
+        else:
+            self._node = xmlstream.Node(tag='log')
+        if to:   self.setTo(to)
+        if type: self.setType(type)
+        if frm: self.setFrom(type)
+
+    def setBody(self,val):
+        "Sets the log message text."
+        self._node.getTag('log').putData(val)
+
+    def setBody(self):
+        "Returns the log message text."
+        return self._node.getTag('log').data
+
+## component types
+
+## Accept  jabber:component:accept
+## Connect jabber:component:connect
+## Execute jabber:component:execute
 
 class Component(Connection):
-    """THIS IS A PROTOTYPE !!"""
+    """docs to come soon... """
     def __init__(self, host, port=5222, connection=xmlstream.TCP,
-                 debug=False, log=False):
+                 debug=False, log=False, ns='jabber:component:accept'):
 
         self._auth_OK = False
 
         Connection.__init__(self, host, port,
-                            namespace='jabber:component:accept',
+                            namespace=ns,
                             debug=debug,
                             log=log,
                             connection=connection)
