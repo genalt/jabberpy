@@ -1373,9 +1373,14 @@ class JID:
 
 
     def getStripped(self):
-        """Returns a jid string with no resource""" 
+        """Returns a JID string with no resource""" 
         if self.node: return self.node + '@' + self.domain
         else: return self.domain
+
+    def __eq__(self, other):
+        """Returns whether this JID is identical to another one.
+           The "other" can be a JID object or a string."""
+        return str(self) == str(other)
 
 #############################################################################
 
