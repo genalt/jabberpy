@@ -710,10 +710,34 @@ class Client(Connection):
             For identity: category, name is mandatory, type is optional.
             For feature: var is mandatory"""
         identities , features = [] , []
-        for i in self._discover(NS_P_DISC_INFO,jid,node):
-            if i.getName()=='identity': identities.append(i.attrs)
-            elif i.getName()=='feature': features.append(i.getAttr('var'))
-        return identities , features
+        disco = self._discover(NS_P_DISC_INFO,jid,node)
+        if disco:
+            for i in disco:
+                if i.getName()=='identity': identities.append(i.attrs)
+                elif i.getName()=='feature': features.append(i.getAttr('var'))
+        return identities, features
+
+    def browseAgent(self,jid,node=None):
+        identities, features, items = [], [], []
+        iq=Iq(to=jid,type='get',query=NS_BROWSE)
+        rep=self.SendAndWaitForResponse(iq)
+        if not rep:
+            return identities, features, items
+        q = rep.getTag('service')
+        if q:
+            identities = [q.attrs]
+        else:
+            identities = []
+        if not q:
+            return identities, features, items
+        for node in q.kids:
+            if node.getName() == 'ns':
+                features.append(node.getData())
+            else:
+                infos = node.attrs
+                infos['category'] = node.getName()
+                items.append(node.attrs)
+        return identities, features, items
 
 #############################################################################
 
