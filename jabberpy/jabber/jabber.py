@@ -244,8 +244,8 @@ class Connection(xmlstream.Client):
         self.DEBUG("dispatch called",DBG_DISPATCH)
         name=stanza.getName()
         if not self.handlers.has_key(name):
-            name='unknown'
             self.DEBUG("whats a tag -> " + name,DBG_NODE_UNKNOWN)
+            name='unknown'
         else:
             self.DEBUG("Got %s stanza"%name, DBG_NODE)
     
@@ -870,8 +870,10 @@ class Protocol(xmlstream.Node):
 class Message(Protocol):
     """Builds on the Protocol class to provide an interface for sending
        message protocol elements"""
-    def __init__(self, to=None, type=None, attrs=None, frm=None, payload=None, node=None):
+    def __init__(self, to=None, body=None, type=None, subject=None, attrs=None, frm=None, payload=None, node=None):
         Protocol.__init__(self, 'message', to=to, type=type, attrs=attrs, frm=frm, payload=payload, node=node)
+        if body: self.setBody(body)
+        if subject: self.setSubject(subject)
         # examine x tag and set timestamp if pressent
         try: self.setTimestamp( self.getTag('x').getAttr('stamp') )
         except: self.setTimestamp()
