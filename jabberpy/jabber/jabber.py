@@ -287,7 +287,7 @@ class Connection(xmlstream.Client):
         """
         self.handlers[tag_name]={type:Proto, '':[]}
 
-    def registerHandler(self,name,handler,typ='',ns='',chained=False, makefirst=False, system=False):
+    def registerHandler(self,name,handler,type='',ns='',chained=False, makefirst=False, system=False):
         """Sets the callback func for processing incoming stanzas.
            Multiple callback functions can be set which are called in
            succession. Callback can optionally raise an NodeProcessed error to 
@@ -319,9 +319,9 @@ class Connection(xmlstream.Client):
            and namespace scope. Note that handlers for particular type or namespace always
            have lower priority that common handlers.
         """
-        if not self.handlers[name].has_key(typ+ns): self.handlers[name][typ+ns]=[]
-        if makefirst: self.handlers[name][typ+ns].insert({'chain':chained,'func':handler,'system':system})
-        else: self.handlers[name][typ+ns].append({'chain':chained,'func':handler,'system':system})
+        if not self.handlers[name].has_key(type+ns): self.handlers[name][type+ns]=[]
+        if makefirst: self.handlers[name][type+ns].insert({'chain':chained,'func':handler,'system':system})
+        else: self.handlers[name][type+ns].append({'chain':chained,'func':handler,'system':system})
 
     def setDisconnectHandler(self, func):
         """Set the callback for a disconnect.
