@@ -78,7 +78,6 @@ class Connection(XMLStream.Client):
     def dispatch(self, root_node ):
 
         self.DEBUG("dispatch called")
-        
         if root_node.name == 'message':
     
             self.DEBUG("got message dispatch")
@@ -524,7 +523,10 @@ class JID: ## !! TODO: integrate into rest of lib ? !! ##
             self.resource = resource
 
     def __str__(self):
-        return self.node + '@' + self.domain + '/' + self.resource 
+        try:
+            return self.node + '@' + self.domain + '/' + self.resource
+        except:
+            return ''
 
     def getNode(self): return self.node
     def getDomain(self): return self.domain
@@ -535,4 +537,9 @@ class JID: ## !! TODO: integrate into rest of lib ? !! ##
     def getResource(self,val): self.resource = val
 
     def getBasic(self): ## find beter name ##
-        return self.node + '@' + self.domain
+        try:
+            return self.node + '@' + self.domain
+        except:
+            return ''
+
+
