@@ -59,6 +59,10 @@ class XMLStreamNode:
     def putData(self, data):
         self.data = data
 
+    def insertData(self, data):
+        self.data = data
+
+
     def getData(self):
         return self.data
 
@@ -113,6 +117,8 @@ class Client:
         self._namespace = namespace
         self.__depth = 0
         self.__sock = None
+
+        self._streamID = None
         
         self._debug = debug
         self._doLog = log
@@ -150,8 +156,9 @@ class Client:
         elif self.__depth > 2:
             self._ptr.kids.append(XMLStreamNode(tag,attrs,self._ptr))
             self._ptr = self._ptr.kids[-1]
-        else:                           ## self.depth == 1:
-            pass
+        else:                           ## it the stream tag:
+            if attrs.has_key('id'):
+                self._streamID = attrs['id']
 
     def unknown_endtag(self, tag ):
         self.__depth = self.__depth - 1
@@ -240,6 +247,8 @@ class Client:
     def getLog(self):
         return self._logData
 
+    def getStreamID(self):
+        return self._streamID
 
 class Server:    
     pass ## muhahahahah

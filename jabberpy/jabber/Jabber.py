@@ -1,4 +1,5 @@
 import XMLStream
+import sha
 from string import split,find,replace
 
 False = 0;
@@ -127,14 +128,53 @@ class Connection(XMLStream.Client):
         return response ## needed ?
 
     def auth(self,username,passwd,resource):
-        str =  u"<iq type='set'>                    \
-                <query xmlns='jabber:iq:auth'><username>%s</username><password>%s</password> \
-                <resource>%s</resource></query></iq>" % ( username,passwd,resource )
-        self.send(str)
-        if (find(self.read(),'error') == -1):         ## this will fire off a callback for ok ? 
+        auth_get_iq = Iq(type='get')
+        auth_get_iq.setID('auth-get')
+        q = auth_get_iq.setQuery('jabber:iq:auth')
+        q.insertTag('username').insertData(username)
+        self.send(auth_get_iq)
+        auth_ret_node = self.waitForResponse("auth-get")
+        self.DEBUG("auth-get node arrived!")
+
+        for child in auth_ret_node.getTag('query').getChildren():
+            self.DEBUG("---> %s" % ( child.getName() ) )
+
+        auth_set_iq = Iq(type='set')
+        auth_set_iq.setID('auth-set')
+        q = auth_set_iq.setQuery('jabber:iq:auth')
+        q.insertTag('username').insertData(username)
+        q.insertTag('resource').insertData(resource)
+
+        if auth_ret_node.getTag('query').getTag('digest'):
+            self.DEBUG("digest authentication supported")
+            digest = q.insertTag('digest')
+            digest.insertData(sha.new(
+                self.getStreamID() + passwd).hexdigest()
+                              )
+        else:
+            q.insertTag('password').insertData(passwd)
+        self.DEBUG("sending %s" % ( str ) )
+
+        # back on track
+        self.send(auth_set_iq) ## TODO: improve for wait !!
+
+
+        ## TODO: imporve !!!!!!!!!
+        if (find(self.read(),'error') == -1):     
             return True
         else:
             return False
+
+
+##        str =  u"<iq type='set'>                    \
+##                <query xmlns='jabber:iq:auth'><username>%s</username><password>%s</password> \
+##                <resource>%s</resource></query></iq>" % ( username,passwd,resource )
+##        self.send(str)
+##        if (find(self.read(),'error') == -1):         ## this will fire off a callback for ok ? 
+##            return True
+##        else:
+##            return False
+##
 
     def requestRoster(self):
         id = self.getAnID()
