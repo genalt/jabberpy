@@ -68,7 +68,7 @@ import xmlstream
 import sha, time
 from string import split,find,replace
 
-VERSION = 0.3
+VERSION = xmlstream.VERSION
 
 False = 0;
 True  = 1;
@@ -85,7 +85,7 @@ NS_AGENT      = "jabber:iq:agent"
 NS_AGENTS     = "jabber:iq:agents"
 NS_AUTH       = "jabber:iq:auth"
 NS_CLIENT     = "jabber:client"
-NS_DELAY     = "jabber:x:delay"
+NS_DELAY      = "jabber:x:delay"
 NS_OOB        = "jabber:iq:oob"
 NS_REGISTER   = "jabber:iq:register"
 NS_ROSTER     = "jabber:iq:roster"
@@ -174,13 +174,14 @@ def ustr(what, encoding=USTR_ENCODING):
     if type(what) == type(u''):
         r = what
     else:
-        r = what.__str__()
+        try: r = what.__str__()
+        except AttributeError: r = generic_str(what)
         # make sure __str__() didnt return a unicode
         if type(r) <> type(u''):
             r = unicode(r,encoding,'replace')
     return r
 
-
+generic_str = str
 def str(what):
     """quick and dirty catchall for all the str() usage.
 
@@ -554,6 +555,7 @@ class Client(Connection):
                 self._roster._setShow(who,pres_obj.getShow())
                 self._roster._setStatus(who,pres_obj.getStatus())
             elif type == 'unavailable':
+                self.DEBUG("roster setting %s to offline" % who)
                 self._roster._setOnline(who,'offline')
                 self._roster._setShow(who,pres_obj.getShow())
                 self._roster._setStatus(who,pres_obj.getStatus())
@@ -676,6 +678,8 @@ class Client(Connection):
             
         iq_result = self.SendAndWaitForResponse(auth_set_iq)
 
+        if iq_result is None:
+             return False
         if iq_result.getError() is None:
             return True
         else:
@@ -683,8 +687,6 @@ class Client(Connection):
            self.lastErrCode = iq_result.getErrorCode()
            # raise error(iq_result.getError()) ?
            return False
-        if iq_result is None:
-             return False
         return True
 
     ## Roster 'helper' func's - also see the Roster class ##
@@ -696,7 +698,7 @@ class Client(Connection):
         rost_iq.setQuery(NS_ROSTER)
         self.SendAndWaitForResponse(rost_iq)
         self.DEBUG("got roster response")
-        self.DEBUG("roster -> %s" % str(self._agents))
+        self.DEBUG("roster -> %s" % str(self._roster))
         return self._roster
 
 
@@ -722,12 +724,12 @@ class Client(Connection):
         """
         iq = Iq(type='set')
         item = iq.setQuery(NS_ROSTER).insertTag('item')
-        item.putAtrr('jid', str(jid))
-        if name != None: item.putAtrr('name', name)
+        item.putAttr('jid', str(jid))
+        if name != None: item.putAttr('name', name)
         if groups != None:
             for group in groups:
                 item.insertTag('group').insertData(group)
-        dummy = self.sendAndWaitForResponse(iq) # Do we need to wait??
+        dummy = self.SendAndWaitForResponse(iq) # Do we need to wait??
 
 
     def removeRosterItem(self,jid):
@@ -749,10 +751,9 @@ class Client(Connection):
         if agent: agent = agent + '.'
         if agent is None: agent = ''
         self._reg_info = {}
-        self.DEBUG("agent -> %s, _host -> %s" % ( agent ,self._host))
         reg_iq = Iq(type='get', to = agent + self._host)
         reg_iq.setQuery(NS_REGISTER)
-        self.DEBUG("got reg response")
+        self.DEBUG("Requesting reg info from %s%s"%(agent,self._host))
         self.DEBUG("roster -> %s" % str(self._agents))
         return self.SendAndWaitForResponse(reg_iq)        
 
@@ -1075,7 +1076,7 @@ class Message(Protocol):
         err.putAttr('code',str(code))
 
 
-    def setTimestamp(self,val):
+    def setTimestamp(self,val=None):
         if not val:
             val = time.strftime( '%Y%m%dT%H:%M:%S', time.gmtime( time.time()))
         self.time_stamp = val
@@ -1608,7 +1609,7 @@ class XDB(Protocol):
             self._node = xmlstream.Node(tag='xdb')
         if to: self.setTo(to)
         if type: self.setType(type)
-        if frm: self.setFrom(type)
+        if frm: self.setFrom(frm)
 
 #############################################################################
 
@@ -1630,7 +1631,7 @@ class Log(Protocol):
         self._node.getTag('log').putData(val)
 
 
-    def setBody(self):
+    def getBody(self):
         "Returns the log message text."
         return self._node.getTag('log').getData()
 
