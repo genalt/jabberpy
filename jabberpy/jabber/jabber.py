@@ -1094,8 +1094,6 @@ class JID:
                 self.resource = ''
             else:
                 self.domain, self.resource = split(jid, '/',1) 
-                self.domain = jid[0]
-                self.resource = jid[1]
         else:
             self.node = node
             self.domain = domain
