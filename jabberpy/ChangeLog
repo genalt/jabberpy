@@ -1,3 +1,63 @@
+2001-11-20 00:15  mallum
+
+	* jabber.py: component improvements
+
+2001-11-19 18:30  mallum
+
+	* jabber.py, examples/pygtkjab.py: improved error handling slighly,
+	added a timeout to sendAndRecieves
+
+2001-11-14 00:07  mallum
+
+	* jabber.py, examples/pygtkjab.py, examples/test_client.py:
+	improvements to pygtk, bug squashed in test client too
+
+2001-11-10 23:06  mallum
+
+	* CREDITS, jabber.py, examples/mailchecker.py: Added CREDITS and
+	submitted mailchecker.py component
+
+2001-11-09 10:37  mallum
+
+	* jabber.py, examples/pygtkjab.py: iq error bug fixed ( thx brian )
+	, pygtk client improvements
+
+2001-11-07 14:07  mallum
+
+	* jabber.py, xmlstream.py, examples/offline.xpm,
+	examples/online.xpm, examples/pending.xpm, examples/pygtkjab.py:
+	Imporved pygtk client, minor bug fixes to core and component stuff
+
+2001-10-28 01:09  mallum
+
+	* jabber.py, examples/pygtkjab.py: pygtk client much improved. bug
+	fixes to jabber.py, mainly roster class
+
+2001-10-16 22:22  mallum
+
+	* examples/: pygtkjab.py, pyqtjab.py: added Arrons pyqt client,
+	started work on improving the pygtk client
+
+2001-10-04 00:09  mallum
+
+	* jabber.py, xmlstream.py, docs/index.html: More Small Class
+	changes
+
+2001-10-04 00:08  mallum
+
+	* examples/pygtkjab.py: pygtk client fixes for new Class structure
+
+2001-09-24 18:56  mallum
+
+	* jabber.py: More work on a Component class
+
+2001-09-22 01:29  mallum
+
+	* examples/test_client.py, ChangeLog, README, jabber.py,
+	xmlstream.py, docs/index.html: re-jigged xmlstream.py classes.
+	Renamed jabber.connection ( to Client ). Sketched out a
+	jabber.Connection class
+
 2001-09-09 20:58  mallum
 
 	* MANIFEST, README, setup.py, xmlstream.py: Improved README and

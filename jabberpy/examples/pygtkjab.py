@@ -54,7 +54,8 @@ class Tab:
         self.cols={}
         self.cols['blue']  = self.cmap.alloc('blue')
         self.cols['red']   = self.cmap.alloc('red')
-        self.cols['black']   = self.cmap.alloc('black')
+        self.cols['black'] = self.cmap.alloc('black')
+        self.cols['green'] = self.cmap.alloc('green')
 
         self.gui = gui
         
@@ -137,25 +138,28 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
     def recieve(self,obj):
         if obj.getFrom().getStripped() == self._id:
             if str(obj.__class__) == 'jabber.Message':
-                self._txt.insert(None,self.cols['red'], None,
-                                 "<%s> " % obj.getFrom().getStripped())
-                self._txt.insert(None,None, None, "%s\n" % obj.getBody())
+                if obj.getError():
+                    err_code = ''
+                    if obj.getErrorCode(): err_code = obj.getErrorCode()
+                    self._txt.insert(None,self.cols['red'], None,
+                                     "%s ( %s )" % obj.getError(),
+                                     err_code )
+                else:
+                    self._txt.insert(None,self.cols['red'], None,
+                                     "<%s> " % obj.getFrom().getStripped())
+                    self._txt.insert(None,None, None, "%s\n" % obj.getBody())
                 return TRUE
             if str(obj.__class__) == 'jabber.Presence':
                 if obj.getType() != 'unavailable':
-                    self._txt.insert(None,self.cols['red'], None,
+                    self._txt.insert(None,self.cols['green'], None,
                                      "<%s> ( %s / %s )\n" % 
                                      ( obj.getFrom().getStripped(),
                                        obj.getStatus(), obj.getShow() ) )
                 else:
-                    self._txt.insert(None,self.cols['red'], None,
+                    self._txt.insert(None,self.cols['green'], None,
                                      "<%s> went offline\n" % 
                                      obj.getFrom().getStripped() )
-                                       
-
                 return TRUE
-
-
         return FALSE
     
     def getData(self):
@@ -756,6 +760,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
 
         self.checkItemCalled = 0
         self.init_menu()
+
         self.close_but = gtk.GtkButton('X')
         self.close_but.connect("clicked", self.closeTabCB);
         self.close_but.show()
@@ -783,18 +788,19 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.itemf.create_items([
             ('/File',             None, None, 0, '<Branch>'),
             ('/File/Exit',        None, self.quit, 0, ''),
-            ('/Tools',           None, None, 0, '<Branch>'),
-            ('/Tools/Chat',      None, self.jabberObj.addChatTabViaRoster,
+            ('/Tools',            None, None, 0, '<Branch>'),
+            ('/Tools/Chat',       None, self.jabberObj.addChatTabViaRoster,
                                   1, ''),            
-            ('/Tools/sep1',        None, None, 0, '<Separator>'),            
+            ('/Tools/sep1',       None, None, 0, '<Separator>'),            
             ('/Tools/Add',        None, self.addCB, 1, ''),
             ('/Tools/Remove',     None, self.removeCB, 0, ''),
 
-            ('/Tools/Status/Available', None, self.statusCB, 1, '<CheckItem>'),
+            ('/Tools/Status/Available',   None, self.statusCB, 1, '<CheckItem>'),
             ('/Tools/Status/Unavailable', None, self.statusCB, 0, '<CheckItem>'),
             ('/Tools/Status/Custom', None, self.custstatusCB, 0, ''),
             ('/Tools/sep2',        None, None, 0, '<Separator>'),            
             ('/Tools/Transports', None, self.transCB, 0, ''),
+            ('/Tools/Tabs/Rotate', None, self.rotateTabCB, 0, ''),
             ('/Tools/Tabs/Url Grabber', None, self.urlTabCB, 0, ''),
             ('/Help', None, None, 0, '<Branch>') ,
             ('/Help/About', None, self.infoCB, 0, '')
@@ -818,8 +824,10 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         
         if action == 1:
             # available
+            self.jabberObj.presence_details = [ 'available', None ]
             pres = jabber.Presence()
         else:
+            self.jabberObj.presence_details = [ 'unavailable', None ]
             pres = jabber.Presence(type='unavailable')
 
         self.jabberObj.send(pres)
@@ -831,6 +839,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         type, show = dia.done
         pres = jabber.Presence(type=type)
         pres.setShow(show)
+        self.jabberObj.presence_details = [ type, show ]
         self.jabberObj.send(pres)
         dia.close()
         
@@ -840,6 +849,12 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
             url_tab.destroy()            
         else:
             self._tabs.append( Url_Tab(self) )
+
+    def rotateTabCB(self, *args):
+        if self.notebook.get_tab_pos() == gtk.POS_BOTTOM:
+            self.notebook.set_tab_pos( gtk.POS_LEFT )
+        else:
+            self.notebook.set_tab_pos( gtk.POS_BOTTOM )
 
     def transCB(self, *args):
         trans_dia = Trans_dialog(None, self.jabberObj)
@@ -971,8 +986,10 @@ class jabberClient(jabber.Client):
                 #print "eek -> ", self.lastErr, self.lastErrCode
                 sys.exit(1)
 
-        self.loggedin_jid = jabber.JID( node = username, domain = server,
+        self.loggedin_jid     = jabber.JID( node = username, domain = server,
                                         resource = resource );
+        self.presence_details = [ 'available', None ]
+        
         Known[server] = { 'xpm':'something' }
         
         print "requesting roster"
