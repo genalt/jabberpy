@@ -1,3 +1,18 @@
+##   jabber.py 
+##
+##   Copyright (C) 2001 Matthew Allum
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation; either version 2, or (at your option)
+##   any later version.
+##
+##   This program is distributed in the hope that it will be useful,
+##   but WITHOUT ANY WARRANTY; without even the implied warranty of
+##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##   GNU General Public License for more details.
+##
+
 """\
 jabber.py provides a library for 
 
@@ -5,7 +20,7 @@ jabber.py provides a library for
 
 # $Id$
 
-import XMLStream
+import xmlstream
 import sha
 from string import split,find,replace
 
@@ -57,9 +72,9 @@ RS_EXT_OFFLINE  = 1
 RS_EXT_PENDING  = 0
 
 
-class Connection(XMLStream.Client):
+class Connection(xmlstream.Client):
     """Class for managing a connection to a jabber server.
-    Inherits from the XMLStream Client class"""    
+    Inherits from the xmlstream Client class"""    
     def __init__(self, host, port=5222, debug=False, log=False):
     
         self.msg_hdlr  = None
@@ -77,25 +92,25 @@ class Connection(XMLStream.Client):
         self.lastErr = ''
         self.lastErrCode = 0
 
-        XMLStream.Client.__init__(self, host, port,
+        xmlstream.Client.__init__(self, host, port,
                                   'jabber:client', debug, log)
 
     def connect(self):
         """Attempts to connect to the specified jabber server.
            Raises an IOError on failiure"""
         try:
-            XMLStream.Client.connect(self)
-        except XMLStream.error, e:
+            xmlstream.Client.connect(self)
+        except xmlstream.error, e:
             raise IOError
 
     def disconnect(self):
         """Safely disconnects from the connected server"""
         self.send(Presence(type='unavailable'));
-        XMLStream.Client.disconnect(self)
+        xmlstream.Client.disconnect(self)
 
     def send(self, what):
-        """Sends a jabber protocol element to the server"""
-        XMLStream.Client.write(self,str(what))
+        """Sends a jabber protocol element (Node) to the server"""
+        xmlstream.Client.write(self,str(what))
 
     def sendInitPresence(self):
         """Sends an empty presence protocol element to the
@@ -242,7 +257,8 @@ class Connection(XMLStream.Client):
     ## Roster 'helper' func's - also see the Roster class ##
 
     def requestRoster(self):
-        #self._roster = {} 
+        """requests the roster from the server and returns a
+        Roster() class instance."""
         rost_iq = Iq(type='get')
         rost_iq.setQuery('jabber:iq:roster')
         self.SendAndWaitForResponse(rost_iq)
@@ -251,9 +267,14 @@ class Connection(XMLStream.Client):
         return self._roster
 
     def getRoster(self):
+        """Returns the current Roster() class instance. Does
+        not contect the server."""
         return self._roster
 
-    def removeRosterItem(self,jid):        
+    def removeRosterItem(self,jid):
+        """Removes an item with Jabber ID jid from both the
+        servers roster and the local interenal Roster()
+        instance"""
         rost_iq = Iq(type='set')
         q = rost_iq.setQuery('jabber:iq:roster').insertTag('item')
         q.putAtrr('jid', str(jid))
@@ -264,6 +285,8 @@ class Connection(XMLStream.Client):
     ## Registration 'helper' funcs ##
     
     def requestRegInfo(self,agent=''):
+        """Requests registration info from the server.
+        returns a dict of required values."""
         if agent: agent = agent + '.'
         self._reg_info = {}
         reg_iq = Iq(type='get', to = agent + self._host)
@@ -273,12 +296,16 @@ class Connection(XMLStream.Client):
         return self.SendAndWaitForResponse(reg_iq)        
 
     def getRegInfo(self):
+        """Returns the last requested register dict."""
         return self._reg_info
 
     def setRegInfo(self,key,val):
+        """Sets a name/value attribute. Note: requestRegInfo must be
+           called before setting."""
         self._reg_info[key] = val
 
     def sendRegInfo(self, agent=''):
+        """Sends the populated register dict back to the server"""
         if agent: agent = agent + '.'
         reg_iq = Iq(to = agent + self._host, type='set')
         q = reg_iq.setQuery('jabber:iq:register')
@@ -289,6 +316,8 @@ class Connection(XMLStream.Client):
     ## Agent helper funcs ##
 
     def requestAgents(self):
+        """Requests a list of available agents. returns a dict of
+        agents and info"""
         self._agents = {}
         agents_iq = Iq(type='get')
         agents_iq.setQuery('jabber:iq:agents')
@@ -300,12 +329,15 @@ class Connection(XMLStream.Client):
     ## Call back stuff ###
 
     def setMessageHandler(self, func):
+        """Set the callback func for recieving messages"""
         self.msg_hdlr = func
 
     def setPresenceHandler(self, func):
+        """Set the callback func for recieving presence"""
         self.pres_hdlr = func
 
     def setIqHandler(self, func):
+        """Set the callback func for recieving iq's"""
         self.iq_hdlr = func
 
     def messageHandler(self, msg_obj):   ## Overide If You Want ##
@@ -362,7 +394,7 @@ class Protocol:
         self._node = None
 
     def asNode(self):
-        """returns an XMLStreamnode representation of the protocol element"""
+        """returns an xmlstreamnode representation of the protocol element"""
         return self._node
     
     def __str__(self):
@@ -389,15 +421,19 @@ class Protocol:
         except: return None
 
     def setTo(self,val):
+        "Sets the to JID of the protocol element"
         self._node.putAttr('to', str(val))
 
     def setFrom(self,val):
+        "Sets the from JID of the protocol element"
         self._node.putAttr('from', str(val))
 
     def setType(self,val):
+        "Sets the type attribute of the protocol element"
         self._node.putAttr('type', val)
 
     def setID(self,val):
+        "Sets the ID of the protocol element"
         self._node.putAttr('id', val)
 
     def getX(self):
@@ -405,7 +441,9 @@ class Protocol:
         try: return self._node.getTag('x').namespace
         except: return None
 
-    def setX(self,namespace):   
+    def setX(self,namespace):
+        """Sets the name space of the x tag. It also creates the node
+        if it doesn't already exist"""
         x = self._node.getTag('x')
         if x:
             x.namespace = namespace
@@ -415,28 +453,33 @@ class Protocol:
         return x
 
     def setXPayload(self, payload):
+        """Sets the Child of the x tag. Can be a Node instance or a
+        XML document"""
         x = self.getXNode()
 
         if x is None:
             x = self._node.insertTag('x')
 
         if type(payload) == type('') or type(payload) == type(u''):
-                payload = XMLStream.XMLStreamNodeBuilder(payload).getDom()
+                payload = xmlstream.NodeBuilder(payload).getDom()
 
         x.kids = [] # should be a method for this realy 
         x.insertNode(payload)
                 
     def getXPayload(self):
+        """Returns the x tags payload as a Node instance"""
         x = self.getXNode()
         if x:
             return x.kids[0]
         return None
     
     def getXNode(self):
+        """Returns the x Node instance"""
         try: return self._node.getTag('x')
         except: return None
 
     def setXNode(self, val=''):
+        """Sets the x nodes data - just text"""
         x = self._node.getTag('x')
         if x:
             x.putData(val)
@@ -451,39 +494,42 @@ class Message(Protocol):
         if node:
             self._node = node
         else:
-            self._node = XMLStream.XMLStreamNode(tag='message')
+            self._node = xmlstream.Node(tag='message')
         if to: self.setTo(str(to))
         if body: self.setBody(body)
         
     def getBody(self):
+        "Returns the message body."
         body = self._node.getTag('body')
         try: return self._node.getTag('body').data
         except: return None
 
-    def getType(self):
-        try: return self._node.getAttr('type')
-        except: return None
-
     def getSubject(self): 
+        "Returns the messages subject."
         try: return self._node.getTag('subject').data
         except: return None
 
     def getThread(self):
+        "Returns the messages thread ID."
         try: return self._node.getTag('thread').data
         except: return None
         
     def getError(self):
+        "Returns the messgaes Error string, if any"
         try: return self._node.getTag('error').data
         except: return None
 
     def getErrorCode(self):
+        "Returns the messgaes Error Code, if any"
         try: return self._node.getTag('error').getAttr('code')
         except: return None
 
     def getTimestamp(self):
+        "Not yet implemented"
         pass
 
     def setBody(self,val):
+        "Sets the message body text."
         body = self._node.getTag('body')
         if body:
             body.putData(val)
@@ -491,20 +537,23 @@ class Message(Protocol):
             body = self._node.insertTag('body').putData(val)
             
     def setSubject(self,val):
+        "Sets the message subject text."
         subj = self._node.getTag('subject')
         if subj:
             subj.putData(val)
         else:
             self._node.insertTag('subject').putData(val)
 
-    def setThread(self,val): 
+    def setThread(self,val):
+        "Sets the message thread ID."
         thread = self._node.getTag('thread')
         if thread:
             thread.putData(val)
         else:
             self._node.insertTag('thread').putData(val)
 
-    def setError(self,val,code): 
+    def setError(self,val,code):
+        "Sets the message error text"
         err = self._node.getTag('error')
         if err:
             err.putData(val)
@@ -512,9 +561,14 @@ class Message(Protocol):
             err = self._node.insertTag('thread').putData(val)
         err.setAttr('code',str(code))
 
-    def setTimestamp(self,val): pass
+    def setTimestamp(self,val):
+        "Not yet implemented"
+        pass
 
     def build_reply(self, reply_txt=''):
+        """Returns a new Message object as a reply to its self.
+        The reply message, has the to and type automatically
+        set."""
         m = Message(to=self.getFrom(), body=reply_txt)
         if not self.getType() == None:
             m.setType(self.getType())  
@@ -530,7 +584,7 @@ class Presence(Protocol):
         if node:
             self._node = node
         else:
-            self._node = XMLStream.XMLStreamNode(tag='presence')
+            self._node = xmlstream.Node(tag='presence')
         if to: self.setTo(str(to))
         if type: self.setType(type)
 
@@ -574,7 +628,7 @@ class Iq(Protocol):
         if node:
             self._node = node
         else:
-            self._node = XMLStream.XMLStreamNode(tag='iq')
+            self._node = xmlstream.Node(tag='iq')
         if to: self.setTo(to)
         if type: self.setType(type)
 
@@ -615,7 +669,7 @@ class Iq(Protocol):
             q = self._node.insertTag('query')
 
         if type(payload) == type('') or type(payload) == type(u''):
-                payload = XMLStream.XMLStreamNodeBuilder(payload).getDom()
+                payload = xmlstream.NodeBuilder(payload).getDom()
 
         q.kids = [] # should be a method for this realy 
         q.insertNode(payload)
@@ -753,7 +807,7 @@ class Roster:
         if self._data.has_key(jid): del self._data[jid]
 
 class JID:
-    """A Simple calss for managing Jabber id's"""
+    """A Simple calss for managing jabber id's"""
     def __init__(self, jid='', node='', domain='', resource=''):
         if jid:
             if find(jid, '@') == -1:

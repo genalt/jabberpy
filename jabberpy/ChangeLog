@@ -1,0 +1,136 @@
+2001-08-28 16:23  mallum
+
+	* Jabber.py, docs/howto.tex: began adding documentation
+
+2001-08-27 22:36  mallum
+
+	* Jabber.py, examples/README: Added 'x' tag methods to the protocol
+	object, added DJ's suggestion that buildreply keeps the message
+	type
+
+2001-08-27 00:53  mallum
+
+	* Changelog, Jabber.py, MANIFEST, XMLStream.py, pygtkjab.py,
+	examples/README, examples/jrpc.py, examples/pygtkjab.py,
+	examples/test_client.py: Added Changelog, removed dependancie for
+	clients to include XMLStream
+
+2001-08-27 00:06  mallum
+
+	* Jabber.py, XMLStream.py, test_client.py, examples/jrpc.py,
+	examples/test_client.py: Added XMLStreamNodeBuilder, payload
+	methods for iq objects, new jrpc.py example, added examples
+	directory
+
+2001-08-25 20:03  mallum
+
+	* Jabber.py, XMLStream.py: added some methods to ease the edition
+	of XMLRPC packets
+
+2001-08-14 22:41  mallum
+
+	* XMLStream.py, pygtkjab.py: added a disconnected callback, began
+	to sort out gtk app
+
+2001-08-11 15:23  mallum
+
+	* README, setup.py, test_client.py: 0.1 release
+
+2001-08-08 22:14  mallum
+
+	* Jabber.py, test_client.py: more roster improvemnts
+
+2001-07-31 23:29  mallum
+
+	* Jabber.py, test_client.py: Roster class added, JID handling
+	improved
+
+2001-07-31 17:03  mallum
+
+	* Jabber.py, pygtkjab.py: added begginings of Roster class
+
+2001-07-26 23:39  mallum
+
+	* Jabber.py, pygtkjab.py: Added initial logon dialog - stilllots to
+	do
+
+2001-07-25 00:35  mallum
+
+	* Jabber.py, pygtkjab.py: added dialogs to pygtk client
+
+2001-07-23 23:27  mallum
+
+	* pygtkjab.py: more pygtk work
+
+2001-07-23 21:22  mallum
+
+	* pygtkjab.py: pygtk client reqrite
+
+2001-07-20 16:38  mallum
+
+	* Jabber.py, pygtkjab.py: nothing specfial
+
+2001-07-16 18:49  mallum
+
+	* Jabber.py, pygtkjab.py: more gui client improvements
+
+2001-07-13 18:26  mallum
+
+	* pygtkjab.py, test_client.py: added begginnings of ipaq pygtk
+	client
+
+2001-07-13 00:04  mallum
+
+	* Jabber.py, XMLStream.py, test_client.py: JID class created
+
+2001-07-11 17:04  mallum
+
+	* Jabber.py, XMLStream.py, test_client.py: test_client imporved
+
+2001-07-09 17:02  mallum
+
+	* Jabber.py: auth bug fixed, cleaning up
+
+2001-07-06 18:01  mallum
+
+	* Jabber.py, XMLStream.py, test_client.py: improved loggin,
+
+2001-07-05 20:01  mallum
+
+	* Jabber.py, XMLStream.py, test_client.py: 
+	more tidying up
+
+2001-07-04 19:33  uid30517
+
+	* Jabber.py, XMLStream.py: added sha auth stuff - thanks DJ
+
+2001-07-04 11:35  uid30517
+
+	* Jabber.py, XMLStream.py: more XMLnodeyness
+
+2001-07-04 00:23  mallum
+
+	* Jabber.py, XMLStream.py: improved object structure - niow all
+	protocol types use nodes
+
+2001-07-03 23:01  mallum
+
+	* Jabber.py, XMLStream.py, test_client.py: made more use of nodes
+	;)
+
+2001-06-29 18:07  mallum
+
+	* Jabber.py, XMLStream.py, test_client.py: fixed a couple of small
+	bugs, started to add some exceptions in ( play around with
+	basically )
+
+2001-06-27 18:50  mallum
+
+	* XMLStream.py, Jabber.py, MANIFEST, README, setup.py,
+	test_client.py: Initial revision
+
+2001-06-27 18:50  mallum
+
+	* XMLStream.py, Jabber.py, MANIFEST, README, setup.py,
+	test_client.py: intial import
+

@@ -4,7 +4,7 @@
 
 # You may need to change the above line to point at
 # python rather than python2 depending on your os/distro
-import Jabber
+import jabber
 import socket
 from select import select
 from string import split,strip
@@ -36,13 +36,13 @@ def doCmd(con,txt):
         elif cmd[0] == '/presence':
             to = cmd[1]
             type = cmd[2]
-            con.send(Jabber.Presence(to, type))
+            con.send(jabber.Presence(to, type))
         elif cmd[0] == '/subscribe':
             to = cmd[1]
-            con.send(Jabber.Presence(to, 'subscribe'))
+            con.send(jabber.Presence(to, 'subscribe'))
         elif cmd[0] == '/unsubscribe':
             to = cmd[1]
-            con.send(Jabber.Presence(to, 'unsubscribe'))
+            con.send(jabber.Presence(to, 'unsubscribe'))
         elif cmd[0] == '/roster':
             con.requestRoster()
             _roster = con.getRoster()
@@ -84,7 +84,7 @@ def doCmd(con,txt):
             print colorize("uh?", 'red')
     else:
         if Who != '':
-            msg = Jabber.Message(Who, strip(txt))
+            msg = jabber.Message(Who, strip(txt))
             msg.setType('chat')
             print "<%s> %s" % (JID, msg.getBody())
             con.send(msg)
@@ -108,16 +108,16 @@ def presenceCB(con, prs):
     # - send request for subscription to their presence
     if type == 'subscribe':
         print colorize("subscribe request from %s" % (who), 'blue')
-        con.send(Jabber.Presence(to=who, type='subscribed'))
-        con.send(Jabber.Presence(to=who, type='subscribe'))
+        con.send(jabber.Presence(to=who, type='subscribed'))
+        con.send(jabber.Presence(to=who, type='subscribe'))
 
     # unsubscription request: 
     # - accept their unsubscription
     # - send request for unsubscription to their presence
     elif type == 'unsubscribe':
         print colorize("unsubscribe request from %s" % (who), 'blue')
-        con.send(Jabber.Presence(to=who, type='unsubscribed'))
-        con.send(Jabber.Presence(to=who, type='unsubscribe'))
+        con.send(jabber.Presence(to=who, type='unsubscribed'))
+        con.send(jabber.Presence(to=who, type='unsubscribe'))
 
     elif type == 'subscribed':
         print colorize("we are now subscribed to %s" % (who), 'blue')
@@ -156,7 +156,7 @@ Password = ''
 Resource = 'default'
 
 
-con = Jabber.Connection(host=Server,debug=False ,log=False) #log=sys.stderr)
+con = jabber.Connection(host=Server,debug=False ,log=False) #log=sys.stderr)
 try:
     con.connect()
 except:

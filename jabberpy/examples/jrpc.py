@@ -14,8 +14,8 @@ mallum <breakfast@10.am>
 
 import sys
 
-## Import Jabber module
-import Jabber
+## Import jabber module
+import jabber
 
 ## Import xmlrpclib - http://www.pythonware.com/products/xmlrpc/index.htm 
 import xmlrpclib
@@ -44,8 +44,8 @@ Username = 'XXXXXX'
 Password = 'XXXXXX'
 Resource = 'xmlrpc'
 
-## Get a Jabber connection object, with loging to stderr
-con = Jabber.Connection(host=Server,log=sys.stderr)
+## Get a jabber connection object, with loging to stderr
+con = jabber.Connection(host=Server,log=sys.stderr)
 
 ## Try and connect
 try:
@@ -75,7 +75,7 @@ con.sendInitPresence()
 xmlrpc_req = xmlrpclib.dumps( (1,2,'three'), methodname='test_func' )
 
 ## Birth an iq ojbject to send to self
-iq = Jabber.Iq(to="%s@%s/%s" % ( Username, Server, Resource), type="get")
+iq = jabber.Iq(to="%s@%s/%s" % ( Username, Server, Resource), type="get")
 
 ## Set the i'qs query namespace
 iq.setQuery('jabber:iq:rpc')
@@ -84,7 +84,7 @@ iq.setQuery('jabber:iq:rpc')
 iq.setID('999999')
 
 ## Set the query payload - can be an XML document or
-## a XMLStreamNode structure
+## a Node structure
 iq.setQueryPayload(xmlrpc_req)
 
 ## Send it

@@ -9,7 +9,7 @@
 #
 
 import gtk
-import Jabber
+import jabber
 import sys,string
 
 TRUE = 1
@@ -139,7 +139,7 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
 
 
     def recieve(self,obj):
-        if str(obj.__class__) != 'Jabber.Message': return FALSE
+        if str(obj.__class__) != 'jabber.Message': return FALSE
         if obj.getFrom().getBasic() == self._title:
             self._txt.insert(None,self.cols['red'], None,
                              "<%s> " % obj.getFrom().getBasic())
@@ -198,7 +198,7 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
         #return self._rows[self._roster_selected]['jid']
 
     def recieve(self,obj):
-        if str(obj.__class__) != 'Jabber.Presence': return FALSE
+        if str(obj.__class__) != 'jabber.Presence': return FALSE
         ## TODO: should recieve iq's too
         self.repaint()
         print "recieved presence"
@@ -476,7 +476,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         gtk.mainquit()
 
 
-class JabberClient(Jabber.Connection):
+class jabberClient(Jabber.Connection):
     def __init__(self,server,username,password,resource):
 
         login_dia = Logon_dialog(None)
@@ -485,10 +485,10 @@ class JabberClient(Jabber.Connection):
         login_dia.close()
         
         print "connecting"
-        Jabber.Connection.__init__(self,host=server,log='Dummy')
+        jabber.Connection.__init__(self,host=server,log='Dummy')
         try:
             self.connect()
-        except XMLStream.error, e:
+        except xmlstream.error, e:
             print "Couldn't connect: %s" % e 
             sys.exit(0)
         else:
@@ -509,7 +509,7 @@ class JabberClient(Jabber.Connection):
 #                    status = 'offline'
 #                else:
 #                    status = 'pending'
-#                jid = Jabber.JID(jid).getBasic()
+#                jid = jabber.JID(jid).getBasic()
 #                found = 0
 #                for item in self.roster:
 #                    if item['jid'] == jid: found = 1
@@ -552,7 +552,7 @@ class JabberClient(Jabber.Connection):
 ##        ## find out what tab is focused ##
 ##        tab_no = self.mainwin.notebook.get_current_page()
 ##        ## build the message for the inputted text ##
-##        msg = Jabber.Message(self.mainwin.tabs[tab_no].jid,
+##        msg = jabber.Message(self.mainwin.tabs[tab_no].jid,
 ##                             self.mainwin.tabs[tab_no].entry.get_text() )
 ##        msg.setType('chat')
 ##        ## send it ##
@@ -566,7 +566,7 @@ class JabberClient(Jabber.Connection):
         jid_raw = self.gui.getTab(0).get_roster_selection()
         if jid_raw:
             print jid_raw
-            jid = Jabber.JID(jid_raw)
+            jid = jabber.JID(jid_raw)
             i = 0
             for t in self.gui.getTabs():
                 print "comparing ", t.getJID() , jid.getBasic()
@@ -582,7 +582,7 @@ class JabberClient(Jabber.Connection):
     def messageSend(self, *args):
         tab = args[-1]
         msg = tab.getData()
-        msg_obj = Jabber.Message(tab._id, msg)
+        msg_obj = jabber.Message(tab._id, msg)
         msg_obj.setType('chat')
         self.send(msg_obj)
 
@@ -609,7 +609,7 @@ class JabberClient(Jabber.Connection):
     
     def process(self,time=0.1):
         while gtk.events_pending(): gtk.mainiteration()
-        Jabber.Connection.process(self,time)
+        jabber.Connection.process(self,time)
     
 
 def main():
@@ -617,7 +617,7 @@ def main():
     username = sys.argv[2]
     password = sys.argv[3]
 
-    s = JabberClient(server,username,password,'default')
+    s = jabberClient(server,username,password,'default')
     while(1): s.process()
     
 if __name__ == "__main__":
