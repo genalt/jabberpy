@@ -699,8 +699,10 @@ class Client(Connection):
     def discoverItems(self,jid,node=None):
         """ According to JEP-0030: jid is mandatory, name, node, action is optional. """
         ret=[]
-        for i in self._discover(NS_P_DISC_ITEMS,jid,node):
-            ret.append(i.attrs)
+        disco = self._discover(NS_P_DISC_ITEMS,jid,node)
+        if disco:
+            for i in disco:
+                ret.append(i.attrs)
         return ret
 
     def discoverInfo(self,jid,node=None):
