@@ -36,8 +36,9 @@ import time, sys, re, socket
 from select import select
 from string import split,find,replace,join
 import xml.parsers.expat
+import debug
 
-VERSION = '0.4'
+VERSION = "0.4+"
 
 False = 0
 True  = 1
@@ -51,6 +52,12 @@ ENCODING = site.encoding
 BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
                        ## transactions
 
+DBG_INIT, DBG_CONNECT, DBG_ALWAYS = debug.DBG_INIT, debug.DBG_CONNECT, debug.DBG_ALWAYS
+DBG_CONN_ERROR = 'conn-error'    ; debug.debug_flags.append( DBG_CONN_ERROR )
+DBG_XML_PARSE = 'xml-parse'      ; debug.debug_flags.append( DBG_XML_PARSE )
+DBG_XML_RAW = 'xml-raw'          ; debug.debug_flags.append( DBG_XML_RAW )
+DBG_XML = [ DBG_XML_PARSE, DBG_XML_RAW ] # sample multiflag
+
 
 def XMLescape(txt):
     "Escape XML entities"
@@ -61,8 +68,8 @@ def XMLescape(txt):
 
 def XMLunescape(txt):
     "Unescape XML entities"
-    txt = replace(txt, "&lt;", "<")
     txt = replace(txt, "&gt;", ">")
+    txt = replace(txt, "&lt;", "<")
     txt = replace(txt, "&amp;", "&")
     return txt
 
@@ -74,23 +81,29 @@ class error:
     
 class Node:
     """A simple XML DOM like class"""
-    def __init__(self, tag='', parent=None, attrs=None ):
-        bits = split(tag)
-        if len(bits) == 1:
-            self.name = tag
-            self.namespace = ''
-        else:
-            self.namespace, self.name = bits
+    def __init__(self, tag=None, parent=None, attrs=None, payload=None, node=None):
+	if node:
+	    if type(node)<>type(self): node=NodeBuilder(node).getDom()
+	    self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = \
+		node.name,node.namespace,node.attrs,node.data,node.kids,node.parent
+	else:
+	    self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = 'tag','',{},[],[],None
 
-        if attrs is None:
-            self.attrs = {}
-        else:
-            self.attrs = attrs
-            
-        self.data = []
-        self.kids = []
-        self.parent = parent
-        
+        if tag: self.namespace, self.name = (['']+tag.split())[-2:]
+
+        if parent: self.parent = parent
+
+#	if self.parent and not self.namespace: self.namespace=self.parent.namespace	# Doesn't checked if this neccessary
+
+	if attrs: self.attrs = attrs
+
+	if payload:
+	    if type(payload) not in (type([]),type(1,)): payload=[payload]
+	    for i in payload:
+		if type(i)==type(self): self.insertNode(i)
+		else: self.insertXML(i)
+#		self.insertNode(Node(node=i))	# Alternative way. Needs perfomance testing.
+
     def setParent(self, node):
         "Set the nodes parent node."
         self.parent = node
@@ -256,7 +269,7 @@ class NodeBuilder:
 class Stream:
     def __init__(
                  self, host, port, namespace,
-                 debug=True,
+                 debug=[DBG_ALWAYS],
                  log=None,
                  sock=None,
                  id=None,
@@ -282,10 +295,11 @@ class Stream:
         self._incomingID = None
         self._outgoingID = id
         
-        self._debug = debug
+        self._debug = debug.Debug(debug)
+        self.DEBUG = self._debug.show # makes it backwards compatible with current code
         self._connection=connection
 
-        self.DEBUG("stream init called")
+        self.DEBUG("stream init called",DBG_INIT)
 
         if log:
             if type(log) is type(""):
@@ -306,26 +320,11 @@ class Stream:
         """
         self._timestampLog = timestamp
 
-    def DEBUG(self,txt):
-        if self._debug:
-            try:
-                sys.stderr.write("DEBUG: %s\n" % txt)
-            except:
-                # unicode strikes again ;)
-                s=u''
-                for i in range(len(txt)):
-                    if ord(txt[i]) < 128:
-                        c = txt[i]
-                    else:
-                        c = '?'
-                    s=s+c
-                sys.stderr.write("DEBUG: %s\n" % s )
-
     def getSocket(self):
         return self._sock
 
     def header(self):    
-        self.DEBUG("stream: sending initial header")
+        self.DEBUG("stream: sending initial header",DBG_INIT)
         str = u"<?xml version='1.0' encoding='UTF-8' ?>   \
                 <stream:stream to='%s' xmlns='%s'" % ( self._host,
                                                        self._namespace )
@@ -337,7 +336,7 @@ class Stream:
 
     def _handle_data(self, data):
         """XML Parser callback"""
-        self.DEBUG("data-> " + data)
+        self.DEBUG("data-> " + data,DBG_XML_PARSE)
         ## TODO: get rid of empty space
         ## self._ptr.data = self._ptr.data + data 
         self._ptr.data.append(data)
@@ -346,7 +345,7 @@ class Stream:
         """XML Parser callback"""
         self.__depth = self.__depth + 1
         self.DEBUG("DEPTH -> %i , tag -> %s, attrs -> %s" % \
-                   (self.__depth, tag, str(attrs)) )
+                   (self.__depth, tag, str(attrs)),DBG_XML_PARSE )
         if self.__depth == 2:
             self._mini_dom = Node(tag=tag, attrs=attrs)
             self._ptr = self._mini_dom
@@ -360,13 +359,13 @@ class Stream:
     def _unknown_endtag(self, tag ):
         """XML Parser callback"""
         self.__depth = self.__depth - 1
-        self.DEBUG("DEPTH -> %i" % self.__depth)
+        self.DEBUG("DEPTH -> %i" % self.__depth,DBG_XML_PARSE)
         if self.__depth == 1:
             self.dispatch(self._mini_dom)
         elif self.__depth > 1:
             self._ptr = self._ptr.parent
         else:
-            self.DEBUG("*** Server closed connection ? ****")
+            self.DEBUG("*** Server closed connection ? ****",DBG_CONN_ERROR)
 
     def dispatch(self, nodes, depth = 0):
         """Overide with the method you want to called with
@@ -380,7 +379,7 @@ class Stream:
                 self.dispatch(n.kids, depth)
                 
     ##def syntax_error(self, message):
-    ##    self.DEBUG("error " + message)
+    ##    self.DEBUG("error " + message,DBG_CONN_ERROR)
 
     def _do_read( self, action, buff_size ):
         """workhorse for read() method.
@@ -411,7 +410,7 @@ class Stream:
 
         # just encode incoming data once!
         data = unicode(raw_data,'utf-8').encode(ENCODING,'replace')
-        self.DEBUG("got data %s" % data )
+        self.DEBUG("got data %s" % data,DBG_XML_RAW )
         self.log(data, 'RECV:')
         self._parser.Parse(data)
         return data
@@ -439,9 +438,9 @@ class Stream:
             else:
                 pass
             self.log(data_out, 'SENT:')
-            self.DEBUG("sent %s" % data_out)
+            self.DEBUG("sent %s" % data_out,DBG_XML_RAW)
         except:
-            self.DEBUG("xmlstream write threw error")
+            self.DEBUG("xmlstream write threw error",DBG_CONN_ERROR)
             self.disconnected()
             
     def process(self,timeout):
@@ -477,7 +476,7 @@ class Stream:
     def disconnected(self): ## To be overidden ##
         """Called when a Network Error or disconnection occurs.
         Designed to be overidden"""
-        self.DEBUG("Network Disconnection")
+        self.DEBUG("Network Disconnection",DBG_CONN_ERROR)
         pass
 
     def log(self, data, inout=''):
@@ -506,7 +505,7 @@ class Client(Stream):
 
         self.DEBUG("client connect called to %s %s type %i" % (self._host,
                                                                self._port,
-                                                               self._connection) )
+                                                               self._connection), DBG_INIT )
 
         ## TODO: check below that stdin/stdout are actually open
         if self._connection == STDIO: return
@@ -515,20 +514,20 @@ class Client(Stream):
         try:
             self._sock.connect((self._host, self._port))
         except socket.error, e:
-            self.DEBUG("socket error")
+            self.DEBUG("socket error",DBG_CONN_ERROR)
             raise error(e)
 
         if self._connection == TCP_SSL:
             try:
-                self.DEBUG("Attempting to create ssl socket")
+                self.DEBUG("Attempting to create ssl socket",DBG_INIT)
                 self._sslObj    = socket.ssl( self._sock, None, None )
                 self._sslIssuer = self._sslObj.issuer()
                 self._sslServer = self._sslObj.server()
             except:
-                self.DEBUG("Socket Error: No SSL Support")
+                self.DEBUG("Socket Error: No SSL Support",DBG_CONN_ERROR)
                 raise error("No SSL Support")
 
-        self.DEBUG("connected")
+        self.DEBUG("connected",DBG_INIT)
         self.header()
         return 0
 
