@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # $Id$
 
@@ -24,11 +24,13 @@ Who = ''
 MyStatus = ''
 MyShow   = ''
 
+#jabber.xmlstream.ENCODING='koi8-r'      # Default is "utf-8"
+
 def usage():
     print "%s: a simple python jabber client " % sys.argv[0]
     print "usage:"
     print "%s <server> - connect to <server> and register" % sys.argv[0]
-    print "%s server> <username> <password> <resource>"    % sys.argv[0]
+    print "%s <server> <username> <password> <resource>"   % sys.argv[0]
     print "            - connect to server and login   "
     sys.exit(0)
 
@@ -64,7 +66,7 @@ def doCmd(con,txt):
             con.requestRoster()
             _roster = con.getRoster()
             for jid in _roster.getJIDs():
-                print colorize("%s :: %s (%s/%s)" 
+                print colorize(u"%s :: %s (%s/%s)" 
                                % ( jid, _roster.getOnline(jid),
                                    _roster.getStatus(jid),
                                    _roster.getShow(jid),
@@ -117,7 +119,7 @@ def messageCB(con, msg):
     """Called when a message is recieved"""
     if msg.getBody(): ## Dont show blank messages ##
         print colorize(
-            '<' + str(msg.getFrom()) + '>', 'green'
+            u'<' + str(msg.getFrom()) + '>', 'green'
             ) + ' ' + msg.getBody()
 
 def presenceCB(con, prs):
@@ -130,7 +132,7 @@ def presenceCB(con, prs):
     # - accept their subscription
     # - send request for subscription to their presence
     if type == 'subscribe':
-        print colorize("subscribe request from %s" % (who), 'blue')
+        print colorize(u"subscribe request from %s" % (who), 'blue')
         con.send(jabber.Presence(to=who, type='subscribed'))
         con.send(jabber.Presence(to=who, type='subscribe'))
 
@@ -138,21 +140,21 @@ def presenceCB(con, prs):
     # - accept their unsubscription
     # - send request for unsubscription to their presence
     elif type == 'unsubscribe':
-        print colorize("unsubscribe request from %s" % (who), 'blue')
+        print colorize(u"unsubscribe request from %s" % (who), 'blue')
         con.send(jabber.Presence(to=who, type='unsubscribed'))
         con.send(jabber.Presence(to=who, type='unsubscribe'))
 
     elif type == 'subscribed':
-        print colorize("we are now subscribed to %s" % (who), 'blue')
+        print colorize(u"we are now subscribed to %s" % (who), 'blue')
 
     elif type == 'unsubscribed':
-        print colorize("we are now unsubscribed to %s"  % (who), 'blue')
+        print colorize(u"we are now unsubscribed to %s"  % (who), 'blue')
 
     elif type == 'available':
-        print colorize("%s is available (%s / %s)" % \
+        print colorize(u"%s is available (%s / %s)" % \
                        (who, prs.getShow(), prs.getStatus()),'blue')
     elif type == 'unavailable':
-        print colorize("%s is unavailable (%s / %s)" % \
+        print colorize(u"%s is unavailable (%s / %s)" % \
                        (who, prs.getShow(), prs.getStatus()),'blue')
 
 
@@ -167,6 +169,7 @@ def disconnectedCB(con):
 def colorize(txt, col):
     """Return colorized text"""
     if not USE_COLOR: return txt ## DJ - just incase it breaks your terms ;) ##
+    if type(txt)==type(u''): txt=txt.encode(jabber.xmlstream.ENCODING,'replace')
     cols = { 'red':1, 'green':2, 'yellow':3, 'blue':4}
     initcode = '\033[;3'
     endcode  = '\033[0m'
@@ -183,7 +186,7 @@ Password = ''
 Resource = 'default'
 
 
-con = jabber.Client(host=Server,debug=True ,log=sys.stderr)
+con = jabber.Client(host=Server,debug=jabber.DBG_ALWAYS ,log=sys.stderr)
 
 # Experimental SSL support
 #
@@ -198,9 +201,9 @@ except IOError, e:
 else:
     print colorize("Connected",'red')
 
-con.setMessageHandler(messageCB)
-con.setPresenceHandler(presenceCB)
-con.setIqHandler(iqCB)
+con.registerHandler('message',messageCB)
+con.registerHandler('presence',presenceCB)
+con.registerHandler('iq',iqCB)
 con.setDisconnectHandler(disconnectedCB)
 
 if len(sys.argv) == 2:
@@ -226,7 +229,7 @@ print colorize("Attempting to log in...", 'red')
 
 
 if con.auth(Username,Password,Resource):
-    print colorize("Logged in as %s to server %s" % ( Username, Server), 'red')
+    print colorize(u"Logged in as %s to server %s" % ( Username, Server), 'red')
 else:
     print "eek -> ", con.lastErr, con.lastErrCode
     sys.exit(1)
