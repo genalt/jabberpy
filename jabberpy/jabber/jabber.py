@@ -3,28 +3,15 @@
 ##   Copyright (C) 2001 Matthew Allum
 ##
 ##   This program is free software; you can redistribute it and/or modify
-##   it under the terms of the GNU General Public License as published by
-##   the Free Software Foundation; either version 2, or (at your option)
+##   it under the terms of the GNU Lesser General Public License as published
+##   by the Free Software Foundation; either version 2, or (at your option)
 ##   any later version.
 ##
 ##   This program is distributed in the hope that it will be useful,
 ##   but WITHOUT ANY WARRANTY; without even the implied warranty of
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##   GNU General Public License for more details.
+##   GNU Lesser General Public License for more details.
 ##
-
-## TODO for 0.3 release
-## 
-##   - fix stackable handlers ( done, testing )
-##   - Rejig classes          ( done, testing )
-##   - improve error handling of 'helper' funcs ( done )
-##   - allow multiple x payloads ( nearly done, testing 
-##   - change license to lgpl
-##
-##   maybes
-## 
-##   - some sort of groupchat support ( maybe in pygtk client )
-##   
 
 
 """\

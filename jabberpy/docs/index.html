@@ -3,11 +3,15 @@
 <title>jabber.py - A Python Jabber library</title>
 <!-- $Id$ -->
 </head>
+<style>
+body {font-size:12px;font-family:verdana,sans-serif;color:black;}
+</style>
 <body>
 
 <h1>jabber.py - A Python Jabber library</h1>
+|<a href="#intro">Introduction</a>|<a href="#news">News</a>|<a href="#status">Status</a>|<a href="#download">Download</a>|<a href="#docs">Documentation</a>|<a href="#links">Links</a>|
 <p>
-<h2>Introduction</h2>
+<a name="into"><h2>Introduction</h2></a>
 <blockquote>
 <p>
 jabber.py is a Python module for the <a href="http://www.jabber.org">jabber</a>
@@ -22,14 +26,32 @@ jabber.py requires at least python 2.0 and the XML expat parser module ( include
 <p>
 It is developed on Linux but should run happily on over Unix's and win32.
 </p>
-jabber.py is released under the GPL license.
+jabber.py is released under the LGPL license.
 </blockquote>
 </p>
 
 <p>
-<h2>News</h2>
+<a name="news"><h2>News</h2></a>
 <blockquote>
-
+<strong>01-2002 0.3 released</strong>
+<p>
+This new release includes;
+<ul>
+<li> <strong>Many</strong> bug fixes</li>
+<li> License change to LGPL</li>
+<li> Component support ( and examples ) </li>
+<li> Improved Roster / JID / X 'payload' support </li>
+<li> Stackable handlers </li>
+<li> A maturing pygtk 'demo' client</li>
+<li> A pyQt client </li>
+</ul>
+</p>
+<strong>01-2002 jabberpy at python10</strong>
+<p>
+Matthew Allum will be talking about Jabbeypy at this years python conference.
+<br>
+For more infomation see the 'web services' track at the <a href="http://www.python10.org">Python10 website</a>
+</p>
 <strong>10-09-2001 0.2 released</strong>
 <p>
 Many improvements including documentation, Roster funcs, 
@@ -40,19 +62,21 @@ bug fixes.
 </p>
 
 <p>
-<h2>Status</h2>
+<a name="status"><h2>Status</h2></a>
 <blockquote>
 
-<p>0.2 provides support for all basic protocol elements, roster management, authentication ( plain, digest and zero-k ) and registration. It also includes a few example scripts including a simple test client.</p>
+<p>0.3 provides support for all basic protocol elements, roster management, authentication ( plain, digest and zero-k ), registration, agents, compents and 'X payloads' . 
+<p>
+It also includes a few example scripts including a simple command line client, a pyQt client, a pyGTK client, a mail checker component and an jabber-xmlrpc example.</p>
 
 </blockquote>
 </p>
 
 <p>
-<h2>Downloads</h2>
+<a name="downloads"><h2>Downloads</h2></a>
 <blockquote>
 <p>
-A tarball of 0.2 is available <a href="http://prdownloads.sourceforge.net/jabberpy/Jabber.py-0.2-1.tar.gz">here</a>
+The Download directory is here <a href="http://prdownloads.sourceforge.net/jabberpy/">here</a>
 </p>
 <p>The sourceforge project page is available <a href="http://sourceforge.net/projects/jabberpy">here</a>  
 </p>
@@ -63,7 +87,7 @@ For more cutting edge code, Id advise people to investigate whats in the cvs rep
 </p>
  
 <p>
-<h2>Documentation</h2>
+<a name="docs"><h2>Documentation</h2></a>
 <blockquote>
 <p>
 The pretty pydoc generated documentation;
@@ -71,22 +95,30 @@ The pretty pydoc generated documentation;
 <a href="docs/jabber.html">jabber.py</a><br>
 <a href="docs/xmlstream.html">xmlstream.py</a><br>
 </blockquote>
-<a href="docs/test_client.py">Heres the source</a> for the simple client written using jabber.py ( included in dist ).
 </p>
-A HOWTO document is in the works.
+A HOWTO document is in the works. 
+<br>
+The presentation from the python10 conference will be here soon too. 
 <p>
 </p>
 <p>
 Also check the <a href="http://sourceforge.net/mail/?group_id=30215">mailing lists</a>
 </blockquote>
 </p>
+<a name="links"><h2>Links</h2></a>
+<blockquote>
+<p>
+<a href="http://jabber.org">Jabber.org</a> 
+</p>
+</blockquote>
 <h2>Author</h2>
 <blockquote>
 Matthew Allum - breakfast@10.am<br>
 Also thanks to DJ Adams for help with some of the finer parts of the protocol implementation.
 </blockquote>
+<p>
+<img src="img/jabber-powered-20.png" width=136 height=20 border=0>
 </p>
-<img src="http://www.jabberpowered.org/jabber-powered-24.gif" border=0>
 <center><small>Copyright Matthew Allum 2001</small></center> 
 
 </body>

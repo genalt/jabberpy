@@ -16,7 +16,7 @@ except:
     sys.exit(1)
     
 setup(name="jabber.py",
-      version="0.2-1",
+      version="0.3-1",
       py_modules=["xmlstream","jabber"],
       description="Python xmlstream and jabber IM protocol libs",
       author="Matthew Allum",

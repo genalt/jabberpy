@@ -1,4 +1,4 @@
-jabberpy  0.2 README Matthew Allum <breakfast@10.am>
+jabberpy  0.3 README Matthew Allum <breakfast@10.am>
 
 Introduction
 -------------
@@ -54,7 +54,7 @@ From the untared distrubution directory; As root run;
 python setup.py install
 
 Alternatively just copy xmlstream.py and jabber.py to somewhere in your
-PYTHON_PATH. 
+PYTHONPATH. 
 
 The examples directory contains some simple jabber based programs which 
 use the library. See examples/README
