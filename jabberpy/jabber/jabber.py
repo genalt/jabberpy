@@ -1102,7 +1102,7 @@ class JID:
     def setDomain(self,val):
         """Sets JID domain from string"""
         self.domain = val
-    def getResource(self,val):
+    def setResource(self,val):
         """Sets JID resource from string"""
         self.resource = val
 
