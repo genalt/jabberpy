@@ -1,3 +1,21 @@
+2001-09-09 20:58  mallum
+
+	* MANIFEST, README, setup.py, xmlstream.py: Improved README and
+	setup.py
+
+2001-09-08 18:09  mallum
+
+	* jabber.py, xmlstream.py, examples/jrpc.py, examples/pygtkjab.py,
+	examples/test_client.py: More documenting...
+
+2001-08-29 16:52  mallum
+
+	* ChangeLog, Changelog, Jabber.py, XMLStream.py, jabber.py,
+	setup.py, xmlstream.py, docs/index.html, examples/jrpc.py,
+	examples/pygtkjab.py, examples/test_client.py: more documentation
+	added, better diconnection handling, renaming to lower case of
+	modules
+
 2001-08-28 16:23  mallum
 
 	* Jabber.py, docs/howto.tex: began adding documentation

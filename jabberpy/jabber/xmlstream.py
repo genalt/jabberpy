@@ -38,21 +38,24 @@ import xml.parsers.expat
 
 VERSION = 0.2
 
-False = 0;
-True  = 1;
+False = 0
+True  = 1
+
+TCP    = 1
+STDIO  = 0
 
 def XMLescape(txt):
     "Escape XML entities"
-    replace(txt, "&", "&amp;")
-    replace(txt, "<", "&lt;")
-    replace(txt, ">", "&gt;")
+    txt = replace(txt, "&", "&amp;")
+    txt = replace(txt, "<", "&lt;")
+    txt = replace(txt, ">", "&gt;")
     return txt
 
 def XMLunescape(txt):
     "Unescape XML entities"
-    replace(txt, "&amp;", "&")
-    replace(txt, "&lt;", "<")
-    replace(txt, "&gt;", ">")
+    txt = replace(txt, "&amp;", "&")
+    txt = replace(txt, "&lt;", "<")
+    txt = replace(txt, "&gt;", ">")
     return txt
 
 class error:
@@ -107,11 +110,11 @@ class Node:
         
     def putData(self, data):
         "Set the nodes textual data" 
-        self.data = data
+        self.data = XMLescape(data)
 
     def insertData(self, data):
         "Set the nodes textual data" 
-        self.data = data
+        self.data = XMLescape(data)
 
     def getData(self):
         "Return the nodes textual data" 
@@ -195,7 +198,9 @@ class NodeBuilder:
             self._mini_dom = Node(tag=tag, attrs=attrs)
             self._ptr = self._mini_dom
         elif self.__depth > 1:
-            self._ptr.kids.append(Node(tag=tag, parent=self._ptr,attrs=attrs ))
+            self._ptr.kids.append(Node(tag   =tag,
+                                       parent=self._ptr,
+                                       attrs =attrs ))
             self._ptr = self._ptr.kids[-1]
         else:                           ## fix this ....
             pass 
@@ -220,9 +225,18 @@ class NodeBuilder:
         return self._mini_dom
 
 
-class Client:
-    def __init__(self, host, port, namespace, debug=True, log=None):
-        self._parser = xml.parsers.expat.ParserCreate(namespace_separator = ' ')
+class Stream:
+    def __init__(
+                 self, host, port, namespace,
+                 debug=True,
+                 log=None,
+                 sock=None,
+                 id=None,
+                 connection=TCP
+                 ):
+
+
+        self._parser = xml.parsers.expat.ParserCreate(namespace_separator=' ')
         self._parser.StartElementHandler  = self._unknown_starttag
         self._parser.EndElementHandler    = self._unknown_endtag
         self._parser.CharacterDataHandler = self._handle_data
@@ -231,11 +245,15 @@ class Client:
         self._port = port 
         self._namespace = namespace
         self.__depth = 0
-        self.__sock = None
+        self._sock = sock
 
-        self._streamID = None
+        self._incomingID = None
+        self._outgoingID = id
         
         self._debug = debug
+        self._connection=connection
+
+        self.DEBUG("stream init called")
 
         if log:
             if type(log) is type(""):
@@ -249,24 +267,18 @@ class Client:
         else:
             self._logFH = None
         
-        
     def DEBUG(self,txt):
         if self._debug:
             sys.stderr.write("DEBUG: %s\n" % txt)
 
-    def connect(self):
-        """Attempt to connect to specified host"""
-        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            self.__sock.connect((self._host, self._port))
-        except socket.error, e:			  
-            raise error(e)
-            return 0
-        self.DEBUG("connected")
+    def header(self):    
+        self.DEBUG("stream: sending initial header")
         str = u"<?xml version='1.0' ?>                \
-               <stream:stream to='%s' xmlns='%s'      \
-                xmlns:stream='http://etherx.jabber.org/streams'>" % \
-               ( self._host, self._namespace )
+                <stream:stream to='%s' xmlns='%s'" % ( self._host,
+                                                       self._namespace )
+        
+        if self._outgoingID: str = str + " id='%s' " % self._outgoingID 
+        str = str + " xmlns:stream='http://etherx.jabber.org/streams'>"
         self.write (str)
         self.read()
 
@@ -289,7 +301,7 @@ class Client:
             self._ptr = self._ptr.kids[-1]
         else:                           ## it the stream tag:
             if attrs.has_key('id'):
-                self._streamID = attrs['id']
+                self._incomingID = attrs['id']
 
     def _unknown_endtag(self, tag ):
         """XML Parser callback"""
@@ -322,43 +334,73 @@ class Client:
     def read(self):
         """Reads incoming data. Called by process() so nonblocking"""
         data = u''
-        data_in = self.__sock.recv(1024)
-        while data_in:
-            data = data + data_in
-            if len(data_in) != 1024:
-                break
-            data_in = self.__sock.recv(1024)
+        data_in = u'' # maybe this will fix encoding errors ...
+        if self._connection == TCP:
+            data_in = data_in + self._sock.recv(1024)
+            while data_in:
+                data = data + data_in
+                if len(data_in) != 1024:
+                    break
+                data_in = self._sock.recv(1024)
+                
+        elif self._connection == STDIO:
+            ## Hope this dont buffer !
+            data_in = data_in + sys.stdin.read(1024)
+            while data_in:
+                data = data + data_in
+                if len(data_in) != 1024:
+                    break
+                data_in = sys.stdin.read(1024)
+        else:
+            pass # should never get here
+            
         self.DEBUG("got data %s" % data )
         self.log(data, 'RECV:')
         self._parser.Parse(data)
         return data
     
-    def write(self,data_out=''):
+    def write(self,data_out=u''):
         """Writes raw outgoing data. blocks"""
-        self.DEBUG("sending %s" % data_out)
         try:
-            self.__sock.send (data_out)
+            if self._connection == TCP:
+                self._sock.send (data_out)
+            elif self._connection == STDIO:
+                self.stdout.write(data_out)
+            else:
+                pass
             self.log(data_out, 'SENT:')
+            self.DEBUG("sent %s" % data_out)
         except:
+            self.DEBUG("xmlstream write threw error")
             self.disconnected()
             
     def process(self,timeout):
-         ready_for_read,ready_for_write,err = \
-                        select([self.__sock],[],[],timeout)
-         for s in ready_for_read:
-             if s == self.__sock:
-                 if not len(self.read()):# A read of length 0 means disconnect
-                     self.disconnected()
-                     return False
-                 return True
-         return False
+        
+        reader=Node
+
+        if self._connection == TCP:
+            reader = self._sock
+        elif self._connection == STDIO:
+            reader = sys.stdin
+        else:
+            pass
+        
+        ready_for_read,ready_for_write,err = \
+                        select( [reader],[],[],timeout)
+        for s in ready_for_read:
+            if s == reader:
+                if not len(self.read()): # length of 0 means disconnect
+                    self.disconnected()
+                    return False
+                return True
+        return False
 
     def disconnect(self):
         """Close the stream and socket"""
         time.sleep(1) ## sleep for a second - server bug ? ##        
         self.write ( "</stream:stream>" )
-        self.__sock.close()
-        self.__sock = None
+        self._sock.close()
+        self._sock = None
         
     def disconnected(self): ## To be overidden ##
         """Called when a Network Error or disconnection occurs.
@@ -373,16 +415,40 @@ class Client:
             self._logFH.write("%s - %s - %s\n" %           
             (time.asctime(time.localtime(time.time())), inout, data ) )
         
-    def getStreamID(self):
+    def getIncomingID(self):
         """Returns the streams ID"""
-        return self._streamID
+        return self._incomingID
+
+    def getOutgoingID(self):
+        """Returns the streams ID"""
+        return self._incomingID
+
+
+class Client(Stream):
+
+    def connect(self):
+        """Attempt to connect to specified host"""
+        ## TODO: check below that stdin/stdout are actually open
+        
+        self.DEBUG("client connect called to %s %s" % (self._host,
+                                                       self._port) )
+
+        if self._connection == STDIO: return
+
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self._sock.connect((self._host, self._port))
+        except socket.error, e:			  
+            seld.DEBUG("socket error")
+            raise error(e)
+        self.DEBUG("connected")
+        self.header()
+        return 0
 
 class Server:    
     pass
 
-class Stream:
-    ## this will form a base for both Client and Server 
-    pass
+
 
 
 

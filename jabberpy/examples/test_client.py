@@ -182,7 +182,7 @@ Password = ''
 Resource = 'default'
 
 
-con = jabber.Client(host=Server,debug=False ,log=False) #log=sys.stderr)
+con = jabber.Client(host=Server,debug=True ,log=sys.stderr)
 try:
     con.connect()
 except IOError, e:

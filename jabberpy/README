@@ -24,7 +24,7 @@ Whats Needed
 ------------- 
 You need python >=2.0 with the expat modules installed. You can check
 for the expat modules by opening up a Python shell ( make sure it 
-reports at least version 2 ) and enter 'import parsers.xml.expat' . 
+reports at least version 2 ) and enter 'import xml.parsers.expat' . 
 If you get an error you need to install the python expat libs... 
 
 To do this;

@@ -144,6 +144,7 @@ class Client(xmlstream.Client):
     def connect(self):
         """Attempts to connect to the specified jabber server.
            Raises an IOError on failiure"""
+        self.DEBUG("jabberpy connect called")
         try:
             xmlstream.Client.connect(self)
         except xmlstream.error, e:
@@ -287,7 +288,7 @@ class Client(xmlstream.Client):
             self.DEBUG("digest authentication supported")
             digest = q.insertTag('digest')
             digest.insertData(sha.new(
-                self.getStreamID() + passwd).hexdigest() )
+                self.getIncomingID() + passwd).hexdigest() )
         else:
             self.DEBUG("plain text authentication supported")
             q.insertTag('password').insertData(passwd)
@@ -418,7 +419,7 @@ class Client(xmlstream.Client):
         self._expected[ID] = None
         while not self._expected[ID]:
             self.DEBUG("waiting on %s" % str(ID))
-            self.process(0)
+            self.process(1)
         response = self._expected[ID]
         del self._expected[ID]
         return response 
@@ -540,12 +541,19 @@ class Protocol:
         else:
             self._node.insertTag('x').putData(val)
 
+    def fromTo(self):
+        """Swaps the element from and to attributes.
+           Not any use with Clients as Server sets from."""
+        tmp = self.getTo()
+        self.setTo(self.getFrom())
+        self.setFrom(tmp)
+
     __repr__ = __str__
 
 
 class Message(Protocol):
     """Builds on the Protocol class to provide an interface for sending
-       message protol elements"""
+       message protocol elements"""
     def __init__(self, to=None, body=None, node=None):
         if node:
             self._node = node
@@ -952,7 +960,7 @@ class JID:
         """Sets JID resource from string"""
         self.resource = val
 
-    def getBasic(self): ## find beter name ##
+    def getStripped(self):
         """returns a jid string with no resource"""
         jid_str = ''
         if self.node: jid_str = jid_str + self.node + '@'
@@ -961,6 +969,63 @@ class JID:
 
 
 
+class Component(xmlstream.Client):
+    """THIS IS A PROTOTYPE !!! It may actually be better
+    to inherit from jabber.Client overiding different funcs"""
+    def __init__(self, host, port=5222, connection=xmlstream.TCP,
+                 debug=False, log=False):
+    
+        self.msg_hdlr  = None
+        self.pres_hdlr = None
+        self.iq_hdlr   = None
+        self.disconnect_hdlr = None
+        
+        self._roster = Roster()
+        self._agents = {}
+        self._reg_info = {}
+        self._reg_agent = ''
 
+        self._id = 0;
+        self._expected = {}
+        
+        self.lastErr = ''
+        self.lastErrCode = 0
+
+        self._auth_OK = False
+
+        xmlstream.Client.__init__(self, host, port,
+                                  namespace='jabber:component:accept',
+                                  debug=debug,
+                                  log=log,
+                                  connection=connection)
+
+    def connect(self):
+        """Attempts to connect to the specified jabber server.
+           Raises an IOError on failiure"""
+        try:
+            xmlstream.Client.connect(self)
+        except xmlstream.error, e:
+            raise IOError(e)
+
+    def auth(self,secret):
+        """will disconnect on faliaure"""
+        self.send( u"<handshake id='1'>%s</handshake>" 
+                   % sha.new( self.getIncomingID() + secret ).hexdigest()
+                  )
+
+        while not self._auth_OK:
+            self.DEBUG("waiting on %s" % str(ID))
+            self.process(1)
+
+        return True
+
+    def dispatch(self, root_node ):
+        """Catch the <handshake/> here"""
+        if root_node.name == 'handshake': # check id too ?
+            self._auth_OK = True
+
+
+class Server:
+    pass
 
 
