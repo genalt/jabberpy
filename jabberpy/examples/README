@@ -1,1 +1,15 @@
-export PYTHONPATH="../" to run in this diercory without installing
+This directory contains some simple example of using jabber.py
+
+test_client.py
+  - A simple command line based client.
+
+jrpc.py
+  - Combining jabber and XML-RPC.
+
+pygtkjab.py
+  - An 'in-progress' pygtk based client. Very alpha !
+
+To run these examples without installing jabberpy, from your shell do a
+
+export PYTHONPATH="../"
+

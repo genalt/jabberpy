@@ -357,6 +357,49 @@ class Protocol:
 
     def setID(self,val): self._node.putAttr('id', val)
 
+    def getX(self):
+        "returns the x namespace"
+        try: return self._node.getTag('x').namespace
+        except: return None
+
+    def setX(self,namespace):   
+        x = self._node.getTag('x')
+        if x:
+            x.namespace = namespace
+        else:
+            x = self._node.insertTag('x')
+            x.setNamespace(namespace)
+        return x
+
+    def setXPayload(self, payload):
+        x = self.getXNode()
+
+        if x is None:
+            x = self._node.insertTag('x')
+
+        if type(payload) == type('') or type(payload) == type(u''):
+                payload = XMLStream.XMLStreamNodeBuilder(payload).getDom()
+
+        x.kids = [] # should be a method for this realy 
+        x.insertNode(payload)
+                
+    def getXPayload(self):
+        x = self.getXNode()
+        if x:
+            return x.kids[0]
+        return None
+    
+    def getXNode(self):
+        try: return self._node.getTag('x')
+        except: return None
+
+    def setXNode(self, val=''):
+        x = self._node.getTag('x')
+        if x:
+            x.putData(val)
+        else:
+            self._node.insertTag('x').putData(val)
+
 
 class Message(Protocol):
     def __init__(self, to=None, body=None, node=None):
@@ -428,6 +471,8 @@ class Message(Protocol):
 
     def build_reply(self, reply_txt=''):
         m = Message(to=self.getFrom(), body=reply_txt)
+        if not self.getType() == None:
+            m.setType(self.getType())  
         t = self.getThread()
         if t: m.setThread(t)
         return m
