@@ -107,17 +107,18 @@ class XMLStreamNode:
     def __str__(self):
         return self._xmlnode2str()
 
-    def _xmlnode2str(self):
+    def _xmlnode2str(self, parent=None):
         s = "<" + self.name   # should I call get_name() ?
         if self.namespace:
-            s = s + " xmlns = '%s' " % self.namespace
+            if parent and parent.namespace != self.namespace:
+                s = s + " xmlns = '%s' " % self.namespace
         for key in self.attrs.keys():
             val = str(self.attrs[key])
             s = s + " %s='%s'" % ( key, XMLescape(val) )
         s = s + ">" + XMLescape(self.data)
         if self.kids != None:
             for a in self.kids:
-                s = s + a._xmlnode2str()
+                s = s + a._xmlnode2str(parent=self)
         s = s + "</" + self.name + ">"
         return s
 
@@ -223,6 +224,7 @@ class Client:
 
     def handle_data(self, data):
         self.DEBUG("data-> " + data)
+        ## TODO: get rid of empty space
         self._ptr.data = self._ptr.data + data 
         
     def unknown_starttag(self, tag, attrs):

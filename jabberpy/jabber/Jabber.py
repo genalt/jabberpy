@@ -522,7 +522,7 @@ class Iq(Protocol):
         q.kids = [] # should be a method for this realy 
         q.insertNode(payload)
                 
-    def setQueryPayload(self):
+    def getQueryPayload(self):
         q = self.getQueryNode()
         if q:
             return q.kids[0]
