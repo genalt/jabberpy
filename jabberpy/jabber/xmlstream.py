@@ -35,6 +35,7 @@ site.encoding = 'UTF-8'
 import time, sys, re, socket
 from select import select
 from string import split,find,replace,join
+from base64 import encodestring
 import xml.parsers.expat
 import debug
 _debug=debug
@@ -49,6 +50,7 @@ STDIO   = 0
 TCP_SSL = 2
 
 ENCODING = site.encoding 
+ustr = str
 
 BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
                        ## transactions
@@ -96,7 +98,9 @@ class Node:
 
 #        if self.parent and not self.namespace: self.namespace=self.parent.namespace	# Doesn't checked if this neccessary
 
-        if attrs: self.attrs = attrs
+        if attrs:
+            for attr in attrs.keys():
+                self.attrs[attr]=attrs[attr]
 
         if payload:
             if type(payload) not in (type([]),type(1,)): payload=[payload]
@@ -185,7 +189,7 @@ class Node:
             if parent and parent.namespace != self.namespace:
                 s = s + " xmlns = '%s' " % self.namespace
         for key in self.attrs.keys():
-            val = str(self.attrs[key])
+            val = ustr(self.attrs[key])
             s = s + " %s='%s'" % ( key, XMLescape(val) )
         s = s + ">"
         cnt = 0 
@@ -195,7 +199,10 @@ class Node:
                 s = s + a._xmlnode2str(parent=self)
                 cnt=cnt+1
         if (len(self.data)-1) >= cnt: s = s + XMLescape(self.data[cnt])
-        s = s + "</" + self.name + ">"
+        if not self.kids() and s[-1:]=='>':
+            s=s[:-1]+' />'
+        else:
+            s = s + "</" + self.name + ">"
         return s
 
     def getTag(self, name):
@@ -247,6 +254,7 @@ class NodeBuilder:
         else:                           ## it the stream tag:
             if attrs.has_key('id'):
                 self._incomingID = attrs['id']
+        self.last_is_data = False
 
     def unknown_endtag(self, tag ):
         """XML Parser callback"""
@@ -258,16 +266,21 @@ class NodeBuilder:
         else:
             self.DEBUG("*** Stream terminated ? ****",DBG_CONN_ERROR)
         self.__depth = self.__depth - 1
+        self.last_is_data = False
 
     def handle_data(self, data):
         """XML Parser callback"""
         self.DEBUG("data-> " + data,DBG_XML_PARSE)
-        self._ptr.data.append(data)
+        if self.last_is_data:
+            self._ptr.data[-1] += data
+        else:
+            self._ptr.data.append(data)
+            self.last_is_data = True
 
     def dispatch(self,dom):
         pass
 
-    def DEBUG(dup1,dup2=None):
+    def DEBUG(self,dup1,dup2=None):
         pass
 
     def getDom(self):
@@ -275,32 +288,28 @@ class NodeBuilder:
 
 
 class Stream(NodeBuilder):
-    def __init__(
-                 self, host, port, namespace,
+    """Extention of NodeBuilder class. Handles stream of XML stanzas. 
+       Calls dispatch method for every child of root node 
+       (stream:stream for jabber stream).
+       attributes _read, _write and _reader must be set by external entity
+    """
+    def __init__(self, namespace,
                  debug=[DBG_ALWAYS],
                  log=None,
-                 sock=None,
                  id=None,
-                 connection=TCP
-                 ):
+                 timestampLog=True):
 
         NodeBuilder.__init__(self)
 
-        self._host = host
-        self._port = port 
         self._namespace = namespace
-        self._sock = sock
 
-        self._sslObj    = None
-        self._sslIssuer = None
-        self._sslServer = None
+        self._read , self._reader , self._write = None , None , None
 
         self._incomingID = None
         self._outgoingID = id
-        
+
         self._debug = _debug.Debug(debug)
-        self.DEBUG = self._debug.show # makes it backwards compatible with current code
-        self._connection=connection
+        self.DEBUG = self._debug.show # makes it backwards compatible with v0.4 code
 
         self.DEBUG("stream init called",DBG_INIT)
 
@@ -309,13 +318,13 @@ class Stream(NodeBuilder):
                 try:
                     self._logFH = open(log,'w')
                 except:
-                    print "ERROR: can open %s for writing"
+                    print "ERROR: can open %s for writing" % log
                     sys.exit(0)
             else: ## assume its a stream type object
                 self._logFH = log
         else:
             self._logFH = None
-        self._timestampLog = True
+        self._timestampLog = timestampLog
 
     def timestampLog(self,timestamp):
         """ Enable or disable the showing of a timestamp in the log.
@@ -323,66 +332,31 @@ class Stream(NodeBuilder):
         """
         self._timestampLog = timestamp
 
-    def getSocket(self):
-        return self._sock
-
-    def header(self):    
-        pass
-
-    ##def syntax_error(self, message):
-    ##    self.DEBUG("error " + message,DBG_CONN_ERROR)
-
-    def _do_read( self, action, buff_size ):
-        """workhorse for read() method.
-
-        added 021231 by jaclu"""
-        data=''
-        data_in = action(buff_size)
-        while data_in:
-            data = data + data_in
-            if len(data_in) != buff_size and data[-buff_size:].rstrip()[-1]=='>':
-                break
-            data_in = action(buff_size)
-        return data
-
     def read(self):
-        """Reads incoming data. Called by process() so nonblocking
+        """Reads incoming data. Blocks until done. Calls self.disconnected() if appropriate."""
+        try: received = self._read(BLOCK_SIZE)
+        except: received = ''
 
-        changed 021231 by jaclu
-        """
-        if self._connection == TCP:
-            raw_data = self._do_read(self._sock.recv, BLOCK_SIZE)
-        elif self._connection == TCP_SSL:
-            raw_data = self._do_read(self._sslObj.read, BLOCK_SIZE)
-        elif self._connection == STDIO:
-            raw_data = self._do_read(self.stdin.read, 1024)
-        else:
-            raw_data = '' # should never get here
+        while select([self._reader],[],[],0)[0]:
+            received += self._read(BLOCK_SIZE)
 
-        # just encode incoming data once!
-        data = unicode(raw_data,'utf-8').encode(ENCODING,'replace')
-        self.DEBUG("got data %s" % data,DBG_XML_RAW )
-        self.log(data, 'RECV:')
-        self._parser.Parse(data)
-        return data
+        if len(received): # length of 0 means disconnect
+            self.DEBUG("got data " + received , DBG_XML_RAW )
+            self.log(received, 'RECV:')
+        else: self.disconnected()
+        return received
 
-    def write(self,raw_data=u''):
+    def write(self,raw_data):
         """Writes raw outgoing data. Blocks until done.
            If supplied data is not unicode string, xmlstream.ENCODING
            is used for convertion. Avoid this!
            Always send your data as a unicode string."""
         if type(raw_data) == type(''):
-            data_out = unicode(raw_data,ENCODING)
-        data_out = raw_data.encode('utf-8','replace')
+            self.DEBUG('Non-utf-8 string "%s" passed to Stream.write! Treating it as %s encoded.'%(raw_data,ENCODING))
+            raw_data = unicode(raw_data,ENCODING)
+        data_out = raw_data.encode('utf-8')
         try:
-            if self._connection == TCP:
-                self._sock.send (data_out)
-            elif self._connection == TCP_SSL:
-                self._sslObj.write(data_out)
-            elif self._connection == STDIO:
-                self.stdout.write(data_out)
-            else:
-                pass
+            self._write(raw_data)
             self.log(data_out, 'SENT:')
             self.DEBUG("sent %s" % data_out,DBG_XML_RAW)
         except:
@@ -390,27 +364,13 @@ class Stream(NodeBuilder):
             self.disconnected()
             
     def process(self,timeout):
-        
-        reader=Node
-
-        if self._connection == TCP: 
-            reader = self._sock
-        elif self._connection == TCP_SSL:
-            reader = self._sock
-        elif self._connection == STDIO:
-            reader = sys.stdin
-        else:
-            pass
-
-        ready_for_read,ready_for_write,err = \
-                        select( [reader],[],[],timeout)
-        for s in ready_for_read:
-            if s == reader:
-                if not len(self.read()): # length of 0 means disconnect
-                    self.disconnected()
-                    return False
-                return True
-        return False
+        """Receives incoming data (if any) and processes it.
+           Waits for data no more than timeout seconds."""
+        if select([self._reader],[],[],timeout)[0]:
+            data = self.read()
+            self._parser.Parse(data)
+            return len(data)
+        return '0'	# Zero means that nothing received but link is alive.
 
     def disconnect(self):
         """Close the stream and socket"""
@@ -445,6 +405,32 @@ class Stream(NodeBuilder):
 
 class Client(Stream):
 
+    def __init__(self, host, port, namespace,
+                 debug=[DBG_ALWAYS],
+                 log=None,
+                 sock=None,
+                 id=None,
+                 connection=TCP,
+                 hostIP=None,
+                 proxy=None):
+
+        Stream.__init__(self, namespace, debug, log, id)
+
+        self._host = host
+        self._port = port 
+        self._sock = sock
+        self._connection = connection
+        if hostIP: self._hostIP = hostIP
+        else: self._hostIP = host
+        self._proxy = proxy
+
+        self._sslObj    = None
+        self._sslIssuer = None
+        self._sslServer = None
+
+    def getSocket(self):
+        return self._sock
+
     def connect(self):
         """Attempt to connect to specified host"""
 
@@ -453,14 +439,17 @@ class Client(Stream):
                                                                self._connection), DBG_INIT )
 
         ## TODO: check below that stdin/stdout are actually open
-        if self._connection == STDIO: return False
+        if self._connection == STDIO:
+            self._setupComms()
+            return
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            self._sock.connect((self._host, self._port))
+            if self._proxy: self._sock.connect((self._proxy['host'], self._proxy['port']))
+            else: self._sock.connect((self._hostIP, self._port))
         except socket.error, e:
-            self.DEBUG("socket error",DBG_CONN_ERROR)
-            raise error(e)
+            self.DEBUG("socket error: "+str(e),DBG_CONN_ERROR)
+            raise
 
         if self._connection == TCP_SSL:
             try:
@@ -470,11 +459,59 @@ class Client(Stream):
                 self._sslServer = self._sslObj.server()
             except:
                 self.DEBUG("Socket Error: No SSL Support",DBG_CONN_ERROR)
-                raise error("No SSL Support")
+                raise
 
-        self.DEBUG("connected",DBG_INIT)
+        self._setupComms()
+
+        if self._proxy:
+            self.DEBUG("Proxy connected",DBG_INIT)
+            if self._proxy.has_key('type'): type = self._proxy['type'].upper()
+            else: type = 'CONNECT'
+            connector = []
+            if type == 'CONNECT':
+                connector.append(u'CONNECT %s:%s HTTP/1.0'%(self._hostIP,self._port))
+            elif type == 'PUT':
+                connector.append(u'PUT http://%s:%s/ HTTP/1.0'%(self._hostIP,self._port))
+            else:
+                self.DEBUG("Proxy Error: unknown proxy type",DBG_CONN_ERROR)
+                raise error('Unknown proxy type: '+type)
+            connector.append('Proxy-Connection: Keep-Alive')
+            connector.append('Pragma: no-cache')
+            connector.append('Host: %s:%s'%(self._hostIP,self._port))
+            connector.append('User-Agent: Jabberpy/'+VERSION)
+            if self._proxy.has_key('user') and self._proxy.has_key('password'):
+                credentials = '%s:%s'%(self._proxy['user'],self._proxy['password'])
+                credentials = encodestring(credentials).strip()
+                connector.append('Proxy-Authorization: Basic '+credentials)
+            connector.append('\r\n')
+            bak = self._read , self._write
+            self.write('\r\n'.join(connector))
+            reply = self.read().replace('\r','')
+            self._read , self._write = bak
+            try: proto,code,desc=reply.split('\n')[0].split(' ',2)
+            except: raise error('Invalid proxy reply')
+            if code<>'200': raise error('Invalid proxy reply: %s %s %s'%(proto,code,desc))
+            while reply.find('\n\n') == -1: reply += self.read().replace('\r','')
+
+        self.DEBUG("Jabber server connected",DBG_INIT)
         self.header()
-        return True
+
+    def _setupComms(self):
+        if self._connection == TCP:
+            self._read = self._sock.recv
+            self._write = self._sock.sendall
+            self._reader = self._sock
+        elif self._connection == TCP_SSL:
+            self._read = self._sslObj.read
+            self._write = self._sslObj.write
+            self._reader = self._sock
+        elif self._connection == STDIO:
+            self._read = self.stdin.read
+            self._write = self.stdout.write
+            self._reader = sys.stdin
+        else:
+            self.DEBUG('unknown connection type',DBG_CONN_ERROR)
+            raise IOError('unknown connection type')
 
 class Server:    
 
