@@ -86,6 +86,7 @@ class Node:
             if type(node)<>type(self): node=NodeBuilder(node).getDom()
             self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = \
                 node.name,node.namespace,node.attrs,node.data,node.kids,node.parent
+            return
         else:
             self.name,self.namespace,self.attrs,self.data,self.kids,self.parent = 'tag','',{},[],[],None
 
