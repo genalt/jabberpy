@@ -4,10 +4,11 @@
 
 # You may need to change the above line to point at
 # python rather than python2 depending on your os/distro
+
 import jabber
 import socket
 from select import select
-from string import split,strip
+from string import split,strip,join
 import sys
 
 True = 1
@@ -17,6 +18,8 @@ False = 0
 USE_COLOR = 1
 
 Who = ''
+MyStatus = ''
+MyShow   = ''
 
 def usage():
     print "%s: a simple python jabber client " % sys.argv[0]
@@ -25,6 +28,7 @@ def usage():
     print "%s server> <username> <password> <resource>"    % sys.argv[0]
     print "            - connect to server and login   "
     sys.exit(0)
+
 
 def doCmd(con,txt):
     global Who
@@ -37,6 +41,18 @@ def doCmd(con,txt):
             to = cmd[1]
             type = cmd[2]
             con.send(jabber.Presence(to, type))
+        elif cmd[0] == '/status':
+            p = jabber.Presence()
+            MyStatus = ' '.join(cmd[1:])
+            p.setStatus(MyStatus)
+            p.setShow(MyShow)
+            con.send(p)
+        elif cmd[0] == '/show':
+            p = jabber.Presence()
+            MyShow = ' '.join(cmd[1:])
+            p.setShow(MyShow)
+            p.setStatus(MyStatus)
+            con.send(p)
         elif cmd[0] == '/subscribe':
             to = cmd[1]
             con.send(jabber.Presence(to, 'subscribe'))
@@ -75,6 +91,10 @@ def doCmd(con,txt):
             print "      - unsubscribe to jid's presence"
             print "   /presence <jabberid> <type>"
             print "      - sends a presence of <type> type to the jabber id"
+            print "   /status <status>"
+            print "      - set your presence status message"
+            print "   /show <status>"
+            print "      - set your presence show message"
             print "   /roster"
             print "      - requests roster from the server and "
             print "        display a basic dump of it."
@@ -95,7 +115,9 @@ def doCmd(con,txt):
 def messageCB(con, msg):
     """Called when a message is recieved"""
     if msg.getBody(): ## Dont show blank messages ##
-        print colorize('<' + str(msg.getFrom()) + '>', 'green') + ' ' + msg.getBody()
+        print colorize(
+            '<' + str(msg.getFrom()) + '>', 'green'
+            ) + ' ' + msg.getBody()
 
 def presenceCB(con, prs):
     """Called when a presence is recieved"""
@@ -126,16 +148,20 @@ def presenceCB(con, prs):
         print colorize("we are now unsubscribed to %s"  % (who), 'blue')
 
     elif type == 'available':
-        print colorize("%s is available (%s / %s)" % (who, prs.getShow(), prs.getStatus()),
-                       'blue')
+        print colorize("%s is available (%s / %s)" % \
+                       (who, prs.getShow(), prs.getStatus()),'blue')
     elif type == 'unavailable':
-        print colorize("%s is unavailable (%s / %s)" % (who, prs.getShow(), prs.getStatus()),
-                       'blue')
+        print colorize("%s is unavailable (%s / %s)" % \
+                       (who, prs.getShow(), prs.getStatus()),'blue')
 
 
 def iqCB(con,iq):
     """Called when an iq is recieved, we just let the library handle it at the moment"""
     pass
+
+def disconnectedCB(con):
+    print colorize("Ouch, network error", 'red')
+    sys.exit(1)
 
 def colorize(txt, col):
     """Return colorized text"""
@@ -156,10 +182,10 @@ Password = ''
 Resource = 'default'
 
 
-con = jabber.Connection(host=Server,debug=False ,log=False) #log=sys.stderr)
+con = jabber.Client(host=Server,debug=False ,log=False) #log=sys.stderr)
 try:
     con.connect()
-except:
+except IOError, e:
     print "Couldn't connect: %s" % e
     sys.exit(0)
 else:
@@ -168,6 +194,7 @@ else:
 con.setMessageHandler(messageCB)
 con.setPresenceHandler(presenceCB)
 con.setIqHandler(iqCB)
+con.setDisconnectHandler(disconnectedCB)
 
 if len(sys.argv) == 2:
     # Set up a jabber account

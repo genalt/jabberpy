@@ -476,7 +476,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         gtk.mainquit()
 
 
-class jabberClient(Jabber.Connection):
+class jabberClient(Jabber.Client):
     def __init__(self,server,username,password,resource):
 
         login_dia = Logon_dialog(None)
@@ -485,7 +485,7 @@ class jabberClient(Jabber.Connection):
         login_dia.close()
         
         print "connecting"
-        jabber.Connection.__init__(self,host=server,log='Dummy')
+        jabber.Client.__init__(self,host=server,log='Dummy')
         try:
             self.connect()
         except xmlstream.error, e:
@@ -609,7 +609,7 @@ class jabberClient(Jabber.Connection):
     
     def process(self,time=0.1):
         while gtk.events_pending(): gtk.mainiteration()
-        jabber.Connection.process(self,time)
+        jabber.Client.process(self,time)
     
 
 def main():

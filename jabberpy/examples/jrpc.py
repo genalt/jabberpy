@@ -20,32 +20,39 @@ import jabber
 ## Import xmlrpclib - http://www.pythonware.com/products/xmlrpc/index.htm 
 import xmlrpclib
 
+## Setup server and auth varibles
+## You'll need to edit these. 
+Server   = 'jabber.com'
+Username = 'xxxxxx'
+Password = 'xxxxxx'
+Resource = 'xmlrpc'
+
+IqID     = '999999'
+
 
 ## This is called when an Iq is recieved 
 def iqCB(con,iq):
     queryNS = iq.getQuery()
     ## Get the query part of the Iq and check its namespace and id
-    if queryNS == 'jabber:iq:rpc' and iq.getID() == '999999':
+    if queryNS == 'jabber:iq:rpc' and iq.getID() == IqID:
+
         ## Get the querys 'payload' , will return an XMLStreanNode structure
         xmlrpc_node = iq.getQueryPayload()
+
         ## Let xmlrpclib parse the method call. The node becomes a string
         ## automatically when called in a str context. 
-        params,func = xmlrpclib.loads("<?xml version='1.0'?>%s" % xmlrpc_node)
+        result,func = xmlrpclib.loads("<?xml version='1.0'?>%s" % xmlrpc_node)
+
         ## Print the function name and params xmllibrpc returns
-        print "Recieved -> ",func,params
+        print "Recieved -> ",result
+
         ## Exit
         sys.exit()
 
 
-## Setup server and auth varibles
-## You'll need to edit these. 
-Server   = 'jabber.com'
-Username = 'XXXXXX'
-Password = 'XXXXXX'
-Resource = 'xmlrpc'
 
-## Get a jabber connection object, with loging to stderr
-con = jabber.Connection(host=Server,log=sys.stderr)
+## Get a jabber connection object, with logging to stderr
+con = jabber.Client(host=Server,log=sys.stderr)
 
 ## Try and connect
 try:
@@ -68,20 +75,24 @@ else:
 
 ## Get the roster and send presence. Maybe not needed but
 ## good practise.
-con.requestRoster()
-con.sendInitPresence()
+## con.requestRoster()
+## con.sendInitPresence()
 
 ## Build an XML-RPC request - note xmlrpc_req is a string
-xmlrpc_req = xmlrpclib.dumps( (1,2,'three'), methodname='test_func' )
+params = ( (16,2,7,4), )
+method = 'examples.getStateList'
+print "sending ", method, params
+xmlrpc_req = xmlrpclib.dumps( params , methodname=method)
 
 ## Birth an iq ojbject to send to self
-iq = jabber.Iq(to="%s@%s/%s" % ( Username, Server, Resource), type="get")
+iqTo = "jrpchttp.gnu.mine.nu/http://validator.userland.com:80/RPC2"
+iq = jabber.Iq(to=iqTo, type="set")
 
 ## Set the i'qs query namespace
 iq.setQuery('jabber:iq:rpc')
 
 ## Set the ID
-iq.setID('999999')
+iq.setID(IqID)
 
 ## Set the query payload - can be an XML document or
 ## a Node structure

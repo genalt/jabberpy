@@ -30,7 +30,7 @@ case.
 
 # $Id$
 
-import xmllib, time, sys
+import xmllib, time, sys, re
 import socket
 from select import select
 from string import split,find,replace
@@ -40,17 +40,18 @@ False = 0;
 True  = 1;
 
 def XMLescape(txt):
+    "Escape XML entities"
     replace(txt, "&", "&amp;")
     replace(txt, "<", "&lt;")
     replace(txt, ">", "&gt;")
     return txt
 
 def XMLunescape(txt):
+    "Unescape XML entities"
     replace(txt, "&amp;", "&")
     replace(txt, "&lt;", "<")
     replace(txt, "&gt;", ">")
     return txt
-
 
 class error:
     def __init__(self, value):
@@ -58,8 +59,8 @@ class error:
     def __str__(self):
         return self.value
     
-
 class Node:
+    """A simple XML DOM like class"""
     def __init__(self, tag='', parent=None, attrs=None ):
         bits = split(tag)
         if len(bits) == 1:
@@ -181,7 +182,9 @@ class NodeBuilder:
         self._parser.CharacterDataHandler = self.handle_data
 
         self.__depth = 0
-        self.__done  = 0 #needed ? 
+        self.__done  = 0 #needed ?
+        self.__space_regex = re.compile('^\s+$')
+        
         self._parser.Parse(data,1)
 
     def unknown_starttag(self, tag, attrs):
@@ -190,7 +193,7 @@ class NodeBuilder:
             self._mini_dom = Node(tag=tag, attrs=attrs)
             self._ptr = self._mini_dom
         elif self.__depth > 1:
-            self._ptr.kids.append(Node(tag=tag, parent=self._ptr, attrs=attrs ))
+            self._ptr.kids.append(Node(tag=tag, parent=self._ptr,attrs=attrs ))
             self._ptr = self._ptr.kids[-1]
         else:                           ## fix this ....
             pass 
@@ -205,7 +208,8 @@ class NodeBuilder:
             pass
 
     def handle_data(self, data):
-        self._ptr.data = self._ptr.data + data 
+        if not self.__space_regex.match(data):  ## check its not all blank 
+            self._ptr.data = self._ptr.data + data 
 
     def dispatch(self,dom):
         self.__done = 1
@@ -372,7 +376,11 @@ class Client:
         return self._streamID
 
 class Server:    
-    pass ## muhahahahah
+    pass
+
+class Stream:
+    ## this will form a base for both Client and Server 
+    pass
 
 
 
