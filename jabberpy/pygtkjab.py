@@ -12,10 +12,7 @@ import gtk
 import Jabber
 import sys,string
 
-TAB_MESSAGE = 1
-TAB_ROSTER  = 2
-TAB_PRESENCE = 3
-TAB_DEBUG = 4
+
 
 TRUE = 1
 FALSE = 0
@@ -46,36 +43,28 @@ class Tab:
     def setData(self,val): pass
 
     def _addToNoteBook(self):
-        self._tab_event = gtk.GtkEventBox()
-        self._tab_event.connect("clicked", self.tabClicked )
+##        self._tab_event = gtk.GtkEventBox()
+##        self._tab_event.connect("clicked", self.tabClicked )
         self._tab_label = gtk.GtkLabel(self._title)
         self._tab_label.show()
-        self._tab_event.add(self._tab_label)
-        self._notebook.append_page(self._box,self._tab_event)
+##        self._tab_event.add(self._tab_label)
+        self._notebook.append_page(self._box,self._tab_label)
 
     def tabClicked(self, *args):
         print "got it"
         return gtk.FALSE
 
     def highlight(self):
-        try:
-            l = self.tabs[tab_no].tab_label
-        except:
-            return
-
-        my_style = l.get_style();
-        my_style.fg[gtk.STATE_NORMAL] = self.cols['blue'] 
-        l.set_style(my_style)
+        print "highlighting"
+        my_style = self._tab_label.get_style();
+        my_style.bg[gtk.STATE_NORMAL] = self.cols['red'] 
+        self._tab_label.set_style(my_style)
 
     def lowlight(self):
-        try:
-            this_tab = self.tabs[tab_no].tab_label
-        except:
-            return
-
-        my_style = this_tab.tab_label.get_style();
-        my_style.fg[gtk.STATE_NORMAL] = self.cols['black'] 
-        this_tab.tab_label.set_style(my_style)
+        print "lowlighting"
+        my_style = self._tab_label.get_style();
+        my_style.bg[gtk.STATE_NORMAL] = self.cols['red'] 
+        self._tab_label.set_style(my_style)
 
     def removeTab(self,*args):
         tab_no = self.notebook.get_current_page()
@@ -233,7 +222,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.notebook = gtk.GtkNotebook()
         self.notebook.set_tab_pos (gtk.POS_BOTTOM);
         self.notebook.set_scrollable( gtk.TRUE ) 
-
+        self.notebook.connect('switch_page', self.notebook_switched)
         self.box.pack_end(self.notebook, fill=gtk.TRUE, expand=gtk.TRUE)
 
         self._tabs.append( Roster_Tab(self, 'roster', roster) )
@@ -241,6 +230,13 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.notebook.show()
         self.show()
 
+    def handle_switch(self,*args):
+        tab_no = self.notebook.get_current_page()
+        self.getTab(tab_no).lowlight()
+        
+    def notebook_switched(self, *args):
+        gtk.idle_add(self.handle_switch)
+ 
     def getTabs(self):
         return self._tabs
 
@@ -377,7 +373,7 @@ class JabberClient(Jabber.Connection):
             self.gui._tabs[-1]._send_button.connect('clicked',
                                                     self.messageSend,
                                                     self.gui._tabs[-1] )
-
+            self.gui._tabs[-1].highlight()
                 
     def presenceHandler(self, prs_obj):
         print "got presence 1"
