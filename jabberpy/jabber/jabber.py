@@ -348,7 +348,7 @@ class Connection(xmlstream.Client):
            self.lastErrCode will be set to the error which caused the
            disconnection, if any.
         """
-        self.disconnected = func
+        self.disconnectHandler = func
 
     ## functions for sending element with ID's ##
 

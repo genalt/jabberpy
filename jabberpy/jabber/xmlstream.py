@@ -388,11 +388,15 @@ class Stream(NodeBuilder):
         self._sock.close()
         self._sock = None
         
-    def disconnected(self,conn): ## To be overidden ##
+    def disconnected(self,conn):
+        """Called when a Network Error or disconnection occurs."""
+        try: self.disconnectHandler(conn)
+        except TypeError: self.disconnectHandler()
+
+    def disconnectHandler(self,conn): ## To be overidden ##
         """Called when a Network Error or disconnection occurs.
         Designed to be overidden"""
-        conn.DEBUG("Network Disconnection",DBG_CONN_ERROR)
-        raise error("network error")
+        raise error("Standart disconnectionHandler called. Replace it with appropriate for your client.")
 
     def log(self, data, inout=''):
         """Logs data to the specified filehandle. Data is time stamped 
