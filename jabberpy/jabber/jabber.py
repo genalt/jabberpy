@@ -212,7 +212,6 @@ class Connection(xmlstream.Client):
         self._expected = {}
         
         self._id = 0;
-        self._dispatch_depth = 2
         
         self.lastErr = ''
         self.lastErrCode = 0
@@ -1298,7 +1297,7 @@ class JID:
     def __init__(self, jid='', node='', domain='', resource=''):
         if jid:
             if find(jid, '@') == -1:
-                self.node = ''
+                self.node = None
             else:
                 bits = split(jid, '@',1)
                 self.node = bits[0]
@@ -1306,7 +1305,7 @@ class JID:
                 
             if find(jid, '/') == -1:
                 self.domain = jid
-                self.resource = ''
+                self.resource = None
             else:
                 self.domain, self.resource = split(jid, '/',1) 
         else:
@@ -1316,14 +1315,10 @@ class JID:
 
 
     def __str__(self):
-        try:
-            jid_str = ''
-            if self.node: jid_str = jid_str + self.node + '@'
-            if self.domain: jid_str = jid_str + self.domain
-            if self.resource: jid_str = jid_str +'/'+ self.resource
-            return jid_str
-        except:
-            return ''
+        jid_str = self.domain
+        if self.node: jid_str = self.node + '@' + jid_str
+        if self.resource: jid_str += '/' + self.resource
+        return jid_str
 
     __repr__ = __str__
 
@@ -1334,12 +1329,12 @@ class JID:
 
 
     def getDomain(self):
-        """Returns JID domain as string"""
+        """Returns JID domain as string or None if absent"""
         return self.domain
 
 
     def getResource(self):
-        """Returns JID resource as string"""
+        """Returns JID resource as string or None if absent"""
         return self.resource
 
 
@@ -1359,11 +1354,9 @@ class JID:
 
 
     def getStripped(self):
-        """Returns a jid string with no resource"""
-        jid_str = ''
-        if self.node: jid_str = jid_str + self.node + '@'
-        if self.domain: jid_str = jid_str + self.domain
-        return jid_str
+        """Returns a jid string with no resource""" 
+        if self.node: return self.node + '@' + self.domain
+        else: return self.domain
 
 #############################################################################
 
