@@ -56,7 +56,9 @@ def doCmd(con,txt):
             print ""
     else:
         if Who != '':
-            con.send(Jabber.Message(Who, strip(txt)))
+            msg = Jabber.Message(Who, strip(txt))
+            msg.setType('chat')
+            con.send(msg)
         else:
             print "Nobody selected"
             
@@ -76,7 +78,7 @@ Password = ''
 Resource = 'default'
 
 
-con = Jabber.Connection(host=Server,debug=False)
+con = Jabber.Connection(host=Server,debug=True)
 try:
     con.connect()
 except XMLStream.error, e:

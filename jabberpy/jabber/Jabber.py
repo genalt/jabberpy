@@ -24,28 +24,16 @@ class Connection(XMLStream.Client):
     def dispatch(self, root_node ):
         self.DEBUG("dispatch called")
         
-        if root_node.tag == 'message':
+        if root_node.name == 'message':
             self.DEBUG("got message dispatch")
-            type = None
-            frm  = root_node.attrs['from']
-            to   = root_node.attrs['to']
-            if root_node.attrs.has_key('type'): type = root_node.attrs['type']
-            body = ''
-            for n in root_node.kids:
-                if n.tag == 'body':
-                    body = n.data
-                if n.tag == 'error':
-                    self.lastErr = n.data
-                    self.lastErrCode = n.attrs['code']
-                if n.tag == 'subject':
-                    msg_obj.setSubject(n.data)
-                    
-            msg_obj = Message(to, body)
-            msg_obj.setFrom(frm)
-            msg_obj.setType(type)
+            
+            msg_obj = Message(node=root_node)
+            self.DEBUG(msg_obj.__str__())
+            self.DEBUG(msg_obj.getBody())
+            self.DEBUG(msg_obj.getTo())
             self.messageHandler(msg_obj)
             
-        elif root_node.tag == 'presence':
+        elif root_node.name == 'presence':
             self.DEBUG("got presence dispatch")
             id     = None
             show   = None
@@ -63,13 +51,13 @@ class Connection(XMLStream.Client):
             if root_node.attrs.has_key('type'):
                 type = root_node.attrs['type']
             for n in root_node.kids:
-                if n.tag == 'show':
+                if n.name == 'show':
                     show = n.data
-                if n.tag == 'status':
+                if n.name == 'status':
                     status = n.data
-                if n.tag == 'priority':
+                if n.name == 'priority':
                     priority = int(n.data)
-                if n.tag == 'x': ## ToDO ##
+                if n.name == 'x': ## ToDO ##
                     pass
 
             pres_obj = Presence(to, type)
@@ -81,7 +69,7 @@ class Connection(XMLStream.Client):
             self.presenceHandler(pres_obj)
 
             
-        elif root_node.tag == 'iq':
+        elif root_node.name == 'iq':
             ## Check for an error
             self.DEBUG("got an iq");
             iq_obj = Iq()
@@ -185,7 +173,7 @@ class Connection(XMLStream.Client):
          if type(what) is type("") or type(what) is type(u""): ## Is it a string ?
              XMLStream.Client.write(self,what)
          else:       ## better add if isinstance(what, protocol_superclass) ..?
-             XMLStream.Client.write(self,what.as_xml())
+             XMLStream.Client.write(self,what.__str__())
 
     def sendInitPresence(self):
         self.send("<presence/>");
@@ -247,57 +235,140 @@ class Connection(XMLStream.Client):
 # The Iq object currently does this. Need to think more obout it
 #
 
+class Protocol:
+    def __init__(self):
+        self._node = None
 
-
-class Message:
-    def __init__(self, to='', body=''):
-        ##self.frm = 'mallum@jabber.com'
-        self._to         = to
-        self._body       = body
-        self._frm       = None
-        self._type       = None
-        self._subject    = None
-        self._thread     = None
-        self._error      = None
-        self._error_code = None
-        self._timestamp  = None
-        self._id         = None
-        
-    def getTo(self): return self._to
-    def getFrom(self): return self._frm
-    def getBody(self): return self._body
-    def getType(self): return self._type
-    def getSubject(self): return self._subject
-    def getThread(self): return self._thread
-    def getError(self): return self._error
-    def getErrorCode(self): return self._error_code
-    def getTimestamp(self): return self._timestamp
-    def getID(self): return self._id
-
-    def setTo(self,val): self._to = val
-    def setFrom(self,val): self._frm = val
-    def setBody(self,val): self._body = val
-    def setType(self,val): self._type = val ## TODO: Define constants 
-    def setSubject(self,val): self._subject = val
-    def setThread(self,val): self._thread = val
-    def setError(self,val): self._error = val
-    def setErrorCode(self,val): self._error_code = val
-    def setTimestamp(self,val): self._timestamp = val
-    def setID(self,val): self._id = val
+    def asNode(self):
+        return self._node
     
-    def as_xml(self):
-        s = "<message "
-        if self._to:   s=s + "to='%s' " % self._to
-        if self._type: s=s + "type='%s' " % self._type
-        s=s + ">"
-        if self._subject: s=s + "<subject>%s</subject>" % self._subject
-        if self._body:    s=s + "<body>%s</body>" % self._body
-        s=s + "</message>"
-        return s
+    def __str__(self):
+        return self._node.__str__()
 
+
+class Message(Protocol):
+    def __init__(self, to='', body='', node=None):
+        ##self.frm = 'mallum@jabber.com'
+        if node:
+            self._node = node
+        else:
+            self._node = XMLStream.XMLStreamNode(tag='message')
+        if to: self.setTo(to)
+        if body: self.setBody(body)
+        
+    def getTo(self):
+        try: return self._node.getAttr('to')
+        except: return None
+        
+    def getFrom(self):
+        try: return self._node.getAttr('from')
+        except: return None
+
+    def getBody(self):
+        body = self._node.getTag('body')
+        try: return self._node.getTag('body').data
+        except: return None
+
+    def getType(self):
+        try: return self._node.getAttr('type')
+        except: return None
+
+    def getSubject(self): 
+        try: return self._node.getTag('subject').data
+        except: return None
+
+    def getThread(self):
+        pass
+    def getError(self):
+        pass
+    def getErrorCode(self):
+        pass
+    def getTimestamp(self):
+        pass
+    def getID(self):
+        pass
+
+    def setTo(self,val): self._node.putAttr('to', val)
+
+    def setFrom(self,val): self._node.putAttr('from', val)
+
+    def setBody(self,val):
+        body = self._node.getTag('body')
+        if body:
+            body.putData(val)
+        else:
+            body = self._node.insertTag('body')
+            body.putData(val)
+            
+    def setType(self,val): self._node.putAttr('type', val)
+    
+    def setSubject(self,val):
+        subj = self._node.getTag('subject')
+        if subj:
+            subj.putData(val)
+        else:
+            self._node.insertTag('subject').putData(val)
+
+    def setThread(self,val): pass
+    def setError(self,val): pass
+    def setErrorCode(self,val): pass
+    def setTimestamp(self,val): pass
+    def setID(self,val): pass
+    
     def build_reply(self, reply_txt=''):
-        return Message(self._frm, reply_txt)
+        return Message(to=self.getFrom(), body=reply_txt)
 
+
+
+##class Message:
+##    def __init__(self, to='', body=''):
+##        ##self.frm = 'mallum@jabber.com'
+##        self._to         = to
+##        self._body       = body
+##        self._frm       = None
+##        self._type       = None
+##        self._subject    = None
+##        self._thread     = None
+##        self._error      = None
+##        self._error_code = None
+##        self._timestamp  = None
+##        self._id         = None
+##        
+##    def getTo(self): return self._to
+##    def getFrom(self): return self._frm
+##    def getBody(self): return self._body
+##    def getType(self): return self._type
+##    def getSubject(self): return self._subject
+##    def getThread(self): return self._thread
+##    def getError(self): return self._error
+##    def getErrorCode(self): return self._error_code
+##    def getTimestamp(self): return self._timestamp
+##    def getID(self): return self._id
+##
+##    def setTo(self,val): self._to = val
+##    def setFrom(self,val): self._frm = val
+##    def setBody(self,val): self._body = val
+##    def setType(self,val): self._type = val ## TODO: Define constants 
+##    def setSubject(self,val): self._subject = val
+##    def setThread(self,val): self._thread = val
+##    def setError(self,val): self._error = val
+##    def setErrorCode(self,val): self._error_code = val
+##    def setTimestamp(self,val): self._timestamp = val
+##    def setID(self,val): self._id = val
+##    
+##    def as_xml(self):
+##        s = "<message "
+##        if self._to:   s=s + "to='%s' " % self._to
+##        if self._type: s=s + "type='%s' " % self._type
+##        s=s + ">"
+##        if self._subject: s=s + "<subject>%s</subject>" % self._subject
+##        if self._body:    s=s + "<body>%s</body>" % self._body
+##        s=s + "</message>"
+##        return s
+##
+##    def build_reply(self, reply_txt=''):
+##        return Message(self._frm, reply_txt)
+##
 class Presence:
     def __init__(self, to='', type=None):
         self._to = to

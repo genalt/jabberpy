@@ -25,14 +25,68 @@ class error:
 
 class XMLStreamNode:
     def __init__(self,tag='',attrs={}, parent=None, data=''):
-        self.namespace, self.tag  = split(tag)
+        bits = split(tag)
+        if len(bits) == 1:
+            self.name = tag
+        else:
+            self.namespace, self.name = bits
         self.attrs = attrs
         self.data = data
         self.kids = []
         self.parent = parent
         
-    def addData(self,data):
-        self.data = self.data + data
+    def setParent(self, node):
+        self.parent = node
+
+    def getParent(self):
+        return self.parent
+
+    def getName(self):
+        return self.name
+
+    def setName(self,val):
+        self.name = val
+
+    def putAttr(self, key, val):
+        self.attrs[key] = val
+
+    def getAttr(self, key):
+        return self.attrs[key]
+
+    def putData(self, data):
+        self.data = data
+
+    def getData(self):
+        return self.data
+
+    def insertTag(self, name):
+        newnode = XMLStreamNode(tag=name, attrs={}, parent=self)
+        self.kids.append(newnode)
+        return newnode
+
+    def __str__(self):
+        return self._xmlnode2str()
+
+    def _xmlnode2str(self):
+        str = "<" + self.name   # should I call get_name() ?
+        for a in self.attrs.keys():
+            str = str + " " + a + "='" + self.attrs[a] + "'"
+        str = str + ">" + self.data
+        if self.kids != None:
+            for a in self.kids:
+                str = str + a._xmlnode2str()
+        str = str + "</" + self.name + ">"
+        return str
+
+    def getTag(self, name):
+        for node in self.kids:
+            if node.getName() == name:
+               return node
+        return None
+
+    def getChildren(self):
+        return self.kids
+
 
 class Client:
     def __init__(self, host, port, namespace, debug=True, log=False):
@@ -103,7 +157,7 @@ class Client:
         padding = padding * depth
         depth = depth + 1
         for n in nodes:
-            print padding + "tag => " + n.tag
+            print padding + "name => " + n.name
             print padding + "attrs => " , n.attrs
             print padding + "data  => " , n.data
             if n.kids != None:
