@@ -120,7 +120,7 @@ RS_EXT_PENDING  = 0
 class BaseClient(xmlstream.Client):
     """Forms the base for both Client and Component Classes"""
     def __init__(self, host, port, namespace,
-                 debug=debug, log=log, connection=connection):
+                 debug=False, log=False, connection=xmlstream.TCP):
     
         self.msg_hdlr  = None
         self.pres_hdlr = None

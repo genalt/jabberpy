@@ -31,7 +31,7 @@ case.
 # $Id$
 
 import xmllib, time, sys, re
-import socket
+from socket import socket, AF_INET, SOCK_STREAM
 from select import select
 from string import split,find,replace
 import xml.parsers.expat
@@ -271,6 +271,9 @@ class Stream:
         if self._debug:
             sys.stderr.write("DEBUG: %s\n" % txt)
 
+    def getSocket(self):
+        return self._sock
+
     def header(self):    
         self.DEBUG("stream: sending initial header")
         str = u"<?xml version='1.0' ?>                \
@@ -280,7 +283,7 @@ class Stream:
         if self._outgoingID: str = str + " id='%s' " % self._outgoingID 
         str = str + " xmlns:stream='http://etherx.jabber.org/streams'>"
         self.write (str)
-        self.read()
+        #self.read()
 
     def _handle_data(self, data):
         """XML Parser callback"""
@@ -435,7 +438,7 @@ class Client(Stream):
 
         if self._connection == STDIO: return
 
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._sock = socket(AF_INET, SOCK_STREAM)
         try:
             self._sock.connect((self._host, self._port))
         except socket.error, e:			  
@@ -446,9 +449,81 @@ class Client(Stream):
         return 0
 
 class Server:    
-    pass
+
+    def now(self): return time.ctime(time.time())
+
+    def __init__(self, maxclients=10):
+
+        self.host = ''  
+        self.port = 5222
+        self.streams = []
+            
+        # make main sockets for accepting new client requests
+        self.mainsocks, self.readsocks, self.writesocks = [], [], []
+
+        self.portsock = socket(AF_INET, SOCK_STREAM)
+        self.portsock.bind((self.host, self.port)) 
+        self.portsock.listen(maxclients)           
+                
+        self.mainsocks.append(self.portsock)  # add to main list to identify
+        self.readsocks.append(self.portsock)  # add to select inputs list 
+                
+        # event loop: listen and multiplex until server process killed
 
 
+    def serve(self):
+        
+        print 'select-server loop starting'
+        
+        while 1:
+            print "LOOPING"
+            readables, writeables, exceptions = select(self.readsocks,
+                                                       self.writesocks, [])
+            for sockobj in readables:
+                if sockobj in self. mainsocks:   # for ready input sockets
+                    newsock, address = sockobj.accept() # accept not block
+                    print 'Connect:', address, id(newsock) 
+                    self.readsocks.append(newsock)
+                    self._makeNewStream(newsock)
+                    # add to select list, wait
+                else:
+                    # client socket: read next line
+                    data = sockobj.recv(1024)
+                    # recv should not block
+                    print '\tgot', data, 'on', id(sockobj)
+                    if not data:        # if closed by the clients 
+                        sockobj.close() # close here and remv from
+                        self.readsocks.remove(sockobj) 
+                    else:
+                    # this may block: should really select for writes too
+                        sockobj.send('Echo=>%s' % data)
+
+
+    def _makeNewStream(self, sckt):
+        new_stream = Stream('localhost', 5222,
+                            'jabber:client',
+                            sock=sckt)
+        self.streams.append(new_stream)
+                            ## maybe overide for a 'server stream'
+        new_stream.header()
+        return new_stream
+
+    def _getStreamSockets(self):
+        socks = [];
+        for s in self.streams:
+            socks.append(s.getSocket())
+        return socks
+        
+    def _getStreamFromSocket(self, sock):
+        for s in self.streams:
+            if s.getSocket() == sock:
+                return s
+        return None
+    
+                    
+                            
+            
+        
 
 
 
