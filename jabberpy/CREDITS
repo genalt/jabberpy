@@ -1,9 +1,13 @@
 
-DJ Adams -
+DJ Adams
       Lots of help with protocol implentation / Bug fixes 
-Brian Lalor - 
-      Bug fixes / IMAP Componet 
+Brian Lalor
+      Bug fixes / IMAP Component 
 John 'zariok' Draughn -
       SSL support
-Aaron Wald - 
+Aaron Wald
       pyqt client
+Erik Westra
+      Lots of bug fixes, and documentation improvements
+Lalo Martins
+      Picogui client
