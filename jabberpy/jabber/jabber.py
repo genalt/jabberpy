@@ -68,12 +68,21 @@ import xmlstream
 import sha, time
 from string import split,find,replace
 
-VERSION = '0.4+'
+debug=xmlstream.debug
+
+VERSION = xmlstream.VERSION
 
 False = 0;
 True  = 1;
 
 USTR_ENCODING='iso-8859-1'
+
+DBG_INIT, DBG_ALWAYS = debug.DBG_INIT, debug.DBG_ALWAYS
+DBG_DISPATCH = 'jb-dispatch'            ; debug.debug_flags.append( DBG_DISPATCH )
+DBG_NODE_IQ = 'jb-node-iq'              ; debug.debug_flags.append( DBG_NODE_IQ )
+DBG_NODE_MESSAGE = 'jb-node-message'    ; debug.debug_flags.append( DBG_NODE_MESSAGE )
+DBG_NODE_PRESENCE = 'jb-node-pressence' ; debug.debug_flags.append( DBG_NODE_PRESENCE )
+DBG_NODE_UNKNOWN = 'jb-node-unknown'    ; debug.debug_flags.append( DBG_NODE_UNKNOWN )
 
 
 #
@@ -174,17 +183,14 @@ def ustr(what, encoding=USTR_ENCODING):
     if type(what) == type(u''):
         r = what
     else:
-    	try:
-		r = what.__str__()
-	except AttributeError, value:
-		# inner __str__ is missing
-		r = generic_str(what)
+        try: r = what.__str__()
+        except AttributeError: r = gen_str(what)
         # make sure __str__() didnt return a unicode
         if type(r) <> type(u''):
             r = unicode(r,encoding,'replace')
     return r
 
-generic_str=str
+gen_str=str
 def str(what):
     """quick and dirty catchall for all the str() usage.
 
@@ -201,6 +207,7 @@ def str(what):
     in that case
     """
     return ustr(what)
+
 
 
 class Connection(xmlstream.Client):
@@ -228,7 +235,7 @@ class Connection(xmlstream.Client):
     def connect(self):
         """Attempts to connect to the specified jabber server.
            Raises an IOError on failure"""
-        self.DEBUG("jabberpy connect called")
+        self.DEBUG("jabberpy connect called",DBG_INIT)
         try:
             xmlstream.Client.connect(self)
         except xmlstream.error, e:
@@ -252,22 +259,22 @@ class Connection(xmlstream.Client):
            to a relevant function or callback.
            Also does some processing for roster and authentication
            helper fuctions"""
-        self.DEBUG("dispatch called")
+        self.DEBUG("dispatch called",DBG_DISPATCH)
         if root_node.name == 'message':
     
-            self.DEBUG("got message dispatch")
+            self.DEBUG("got message dispatch",DBG_DISPATCH)
             msg_obj = Message(node=root_node)
             self.messageHandler(msg_obj) 
             
         elif root_node.name == 'presence':
 
-            self.DEBUG("got presence dispatch")
+            self.DEBUG("got presence dispatch",DBG_DISPATCH)
             pres_obj = Presence(node=root_node)
             self.presenceHandler(pres_obj)
             
         elif root_node.name == 'iq':
 
-            self.DEBUG("got an iq");
+            self.DEBUG("got an iq",DBG_DISPATCH);
             iq_obj = Iq(node=root_node)
             if root_node.getAttr('id') and \
                self._expected.has_key(root_node.getAttr('id')):
@@ -276,7 +283,7 @@ class Connection(xmlstream.Client):
                 self.iqHandler(iq_obj)
 
         else:
-            self.DEBUG("whats a tag -> " + root_node.name)
+            self.DEBUG("whats a tag -> " + root_node.name,DBG_NODE_UNKNOWN)
 
     ## Callback stuff ###
 
@@ -443,12 +450,12 @@ class Connection(xmlstream.Client):
 
         abort_time = time.time() + timeout
         if timeout:
-            self.DEBUG("waiting with timeout:%s for %s" % (timeout,ustr(ID)))
+            self.DEBUG("waiting with timeout:%s for %s" % (timeout,ustr(ID)),DBG_NODE_IQ)
         else:
-            self.DEBUG("waiting for %s" % ustr(ID))
+            self.DEBUG("waiting for %s" % ustr(ID),DBG_NODE_IQ)
         
         while (not self._expected[ID]) and not has_timed_out:
-            self.process(0.2)
+            if not self.process(0.2): return None
             if timeout and (time.time() > abort_time):
                 has_timed_out = True
         if has_timed_out:
@@ -498,14 +505,11 @@ class Client(Connection):
         self._reg_info = {}
         self._reg_agent = ''
 
-        #xmlstream.Client.__init__(self, host, port,
-        #                          NS_CLIENT, debug, log)
-
 
     def connect(self):
         """Attempts to connect to the specified jabber server.
            Raises an IOError on failure"""
-        self.DEBUG("jabberpy connect called")
+        self.DEBUG("jabberpy connect called",DBG_INIT)
         try:
             xmlstream.Client.connect(self)
         except xmlstream.error, e:
@@ -536,27 +540,28 @@ class Client(Connection):
            to a relevant function or callback.
            Also does some processing for roster and authentication
            helper fuctions"""
-        self.DEBUG("dispatch called")
+        self.DEBUG("Client dispatch called",DBG_DISPATCH)
         if root_node.name == 'message':
     
-            self.DEBUG("got message dispatch")
+            self.DEBUG("got message dispatch",DBG_DISPATCH)
             msg_obj = Message(node=root_node)
             self.messageHandler(msg_obj) 
             
         elif root_node.name == 'presence':
 
-            self.DEBUG("got presence dispatch")
+            self.DEBUG("got presence dispatch",DBG_DISPATCH)
             pres_obj = Presence(node=root_node)
 
             who = ustr(pres_obj.getFrom())
             type = pres_obj.getType()
-            self.DEBUG("presence type is %s" % type)
+            self.DEBUG("presence type is %s" % type,DBG_NODE_PRESENCE)
             if type == 'available' or not type:
-                self.DEBUG("roster setting %s to online" % who)
+                self.DEBUG("roster setting %s to online" % who,DBG_NODE_PRESENCE)
                 self._roster._setOnline(who,'online')
                 self._roster._setShow(who,pres_obj.getShow())
                 self._roster._setStatus(who,pres_obj.getStatus())
             elif type == 'unavailable':
+                self.DEBUG("roster setting %s to offline" % who,DBG_NODE_PRESENCE)
                 self._roster._setOnline(who,'offline')
                 self._roster._setShow(who,pres_obj.getShow())
                 self._roster._setStatus(who,pres_obj.getStatus())
@@ -567,7 +572,7 @@ class Client(Connection):
             
         elif root_node.name == 'iq':
 
-            self.DEBUG("got an iq");
+            self.DEBUG("got an iq",DBG_DISPATCH);
             iq_obj = Iq(node=root_node)
             queryNS = iq_obj.getQuery()
 
@@ -597,7 +602,7 @@ class Client(Connection):
                                                   groups=groups, sub=sub,
                                                   ask=ask)
                         else:
-                            self.DEBUG("roster - jid not defined ?")
+                            self.DEBUG("roster - jid not defined ?",DBG_NODE_IQ)
                         
                 elif queryNS == NS_REGISTER and type == 'result':
 
@@ -607,7 +612,7 @@ class Client(Connection):
                     
                 elif queryNS == NS_AGENTS and type == 'result':
 
-                        self.DEBUG("got agents result")
+                        self.DEBUG("got agents result",DBG_NODE_IQ)
                         self._agents = {}
                         for agent in iq_obj.getQueryNode().getChildren():
                             if agent.getName() == 'agent': ## hmmm
@@ -625,7 +630,7 @@ class Client(Connection):
                 self.iqHandler(iq_obj)
 
         else:
-            self.DEBUG("whats a tag -> " + root_node.name)
+            self.DEBUG("whats a tag -> " + root_node.name,DBG_NODE_UNKNOWN)
 
 
     def auth(self,username,passwd,resource):
@@ -649,7 +654,7 @@ class Client(Connection):
             auth_ret_node = auth_response.asNode()
 
         auth_ret_query = auth_ret_node.getTag('query')
-        self.DEBUG("auth-get node arrived!")
+        self.DEBUG("auth-get node arrived!",(DBG_INIT,DBG_NODE_IQ))
 
         auth_set_iq = Iq(type='set')
         auth_set_iq.setID('auth-set')
@@ -662,19 +667,19 @@ class Client(Connection):
             
             token = auth_ret_query.getTag('token').getData()
             seq = auth_ret_query.getTag('sequence').getData()
-            self.DEBUG("zero-k authentication supported")
+            self.DEBUG("zero-k authentication supported",(DBG_INIT,DBG_NODE_IQ))
             hash = sha.new(sha.new(passwd).hexdigest()+token).hexdigest()
             for foo in xrange(int(seq)): hash = sha.new(hash).hexdigest()
             q.insertTag('hash').insertData(hash)
 
         elif auth_ret_query.getTag('digest'):
 
-            self.DEBUG("digest authentication supported")
+            self.DEBUG("digest authentication supported",(DBG_INIT,DBG_NODE_IQ))
             digest = q.insertTag('digest')
             digest.insertData(sha.new(
                 self.getIncomingID() + passwd).hexdigest() )
         else:
-            self.DEBUG("plain text authentication supported")
+            self.DEBUG("plain text authentication supported",(DBG_INIT,DBG_NODE_IQ))
             q.insertTag('password').insertData(passwd)
             
         iq_result = self.SendAndWaitForResponse(auth_set_iq)
@@ -698,8 +703,8 @@ class Client(Connection):
         rost_iq = Iq(type='get')
         rost_iq.setQuery(NS_ROSTER)
         self.SendAndWaitForResponse(rost_iq)
-        self.DEBUG("got roster response")
-        self.DEBUG("roster -> %s" % ustr(self._agents))
+        self.DEBUG("got roster response",DBG_NODE_IQ)
+        self.DEBUG("roster -> %s" % ustr(self._roster),DBG_NODE_IQ)
         return self._roster
 
 
@@ -746,17 +751,15 @@ class Client(Connection):
 
     ## Registration 'helper' funcs ##
 
-    def requestRegInfo(self,agent=None):
+    def requestRegInfo(self,agent=''):
         """Requests registration info from the server.
            Returns the Iq object received from the server."""
         if agent: agent = agent + '.'
-        if agent is None: agent = ''
         self._reg_info = {}
-        self.DEBUG("agent -> %s, _host -> %s" % ( agent ,self._host))
         reg_iq = Iq(type='get', to = agent + self._host)
         reg_iq.setQuery(NS_REGISTER)
-        self.DEBUG("got reg response")
-        self.DEBUG("roster -> %s" % ustr(self._agents))
+        self.DEBUG("Requesting reg info from %s%s:" % (agent, self._host), DBG_NODE_IQ)
+        self.DEBUG(str(reg_iq),DBG_NODE_IQ)
         return self.SendAndWaitForResponse(reg_iq)        
 
 
@@ -826,8 +829,8 @@ class Client(Connection):
         agents_iq = Iq(type='get')
         agents_iq.setQuery(NS_AGENTS)
         self.SendAndWaitForResponse(agents_iq)
-        self.DEBUG("got agents response")
-        self.DEBUG("agents -> %s" % ustr(self._agents))
+        self.DEBUG("got agents response",DBG_NODE_IQ)
+        self.DEBUG("agents -> %s" % ustr(self._agents),DBG_NODE_IQ)
         return self._agents
 
 #############################################################################
@@ -835,7 +838,7 @@ class Client(Connection):
 class Protocol:
     """Base class for jabber 'protocol elements' - messages, presences and iqs.
        Implements methods that are common to all these"""
-    def __init__(self):
+    def __init__(self, name=None, attrs=None, payload=None, node=None):
         self._node = None
 
 
@@ -857,7 +860,7 @@ class Protocol:
         if not err:
             err = self._node.insertTag('error')
         err.putData(val)
-        err.putAttr('code',ustr(code))
+        err.putAttr('code',str(code))
 
 
     def asNode(self):
@@ -1028,7 +1031,6 @@ class Message(Protocol):
 
     def getBody(self):
         """Returns the message body."""
-        body = self._node.getTag('body')
         try: return self._node.getTag('body').getData()
         except: return None
 
@@ -1103,7 +1105,7 @@ class Presence(Protocol):
             self._node = node
         else:
             self._node = xmlstream.Node(tag='presence')
-        if to: self.setTo(ustr(to))
+        if to: self.setTo(str(to))
         if type: self.setType(type)
 
 
@@ -1289,7 +1291,7 @@ class Roster:
 
     def getStatus(self, jid): ## extended
         """Returns the 'status' value for a Roster item with the given jid."""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['status']
         return None
@@ -1297,7 +1299,7 @@ class Roster:
 
     def getShow(self, jid):   ## extended
         """Returns the 'show' value for a Roster item with the given jid."""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['show']
         return None
@@ -1306,7 +1308,7 @@ class Roster:
     def getOnline(self,jid):  ## extended
         """Returns the 'online' status for a Roster item with the given jid.
            """
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['online']
         return None
@@ -1315,7 +1317,7 @@ class Roster:
     def getSub(self,jid):
         """Returns the 'subscription' status for a Roster item with the given
            jid."""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['sub']
         return None
@@ -1323,7 +1325,7 @@ class Roster:
 
     def getName(self,jid):
         """Returns the 'name' for a Roster item with the given jid."""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['name']
         return None
@@ -1332,7 +1334,7 @@ class Roster:
     def getGroups(self,jid):
         """ Returns the lsit of groups associated with the given roster item.
         """
-        jid = ustr(jid)
+        jid = str(jid)
         if self._data.has_key(jid):
             return self._data[jid]['groups']
         return None
@@ -1340,7 +1342,7 @@ class Roster:
 
     def getAsk(self,jid):
         """Returns the 'ask' status for a Roster item with the given jid."""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             return self._data[jid]['ask']
         return None
@@ -1372,7 +1374,7 @@ class Roster:
 
     def isOnline(self,jid):
         """Returns True if the given jid is online, False if not."""
-        jid = ustr(jid)
+        jid = str(jid)
         if self.getOnline(jid) != 'online':
             return False
         else:
@@ -1382,7 +1384,7 @@ class Roster:
     def _set(self,jid,name,groups,sub,ask):
         # meant to be called by actual iq tag
         """Used internally - private"""
-        jid = ustr(jid) # just in case
+        jid = str(jid) # just in case
         online = 'offline'
         if ask: online = 'pending'
         if self._data.has_key(jid): # update it
@@ -1406,7 +1408,7 @@ class Roster:
 
     def _setOnline(self,jid,val):
         """Used internally - private"""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['online'] = val
             if self._listener != None:
@@ -1421,7 +1423,7 @@ class Roster:
 
     def _setShow(self,jid,val):
         """Used internally - private"""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['show'] = val 
             if self._listener != None:
@@ -1436,7 +1438,7 @@ class Roster:
 
     def _setStatus(self,jid,val):
         """Used internally - private"""
-        jid = ustr(jid) 
+        jid = str(jid) 
         if self._data.has_key(jid):
             self._data[jid]['status'] = val
             if self._listener != None:
