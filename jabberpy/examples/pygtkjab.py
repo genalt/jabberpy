@@ -105,9 +105,9 @@ class Tab:
 
 class Chat_Tab(Tab): ### Make bigger and Better !!!
     def __init__(self, gui, jid):
-        Tab.__init__(self, gui, jid.getBasic())
+        Tab.__init__(self, gui, jid.getStripped())
 
-        self._id = str(jid.getBasic())
+        self._id = str(jid.getStripped())
         self._kill_button = gtk.GtkButton('X')
         self._box.pack_start(self._kill_button,
                              fill=gtk.FALSE, expand=gtk.FALSE)
@@ -140,9 +140,9 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
 
     def recieve(self,obj):
         if str(obj.__class__) != 'jabber.Message': return FALSE
-        if obj.getFrom().getBasic() == self._title:
+        if obj.getFrom().getStripped() == self._title:
             self._txt.insert(None,self.cols['red'], None,
-                             "<%s> " % obj.getFrom().getBasic())
+                             "<%s> " % obj.getFrom().getStripped())
             self._txt.insert(None,None, None, "%s\n" % obj.getBody())
             return TRUE
         return FALSE
@@ -476,7 +476,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         gtk.mainquit()
 
 
-class jabberClient(Jabber.Client):
+class jabberClient(jabber.Client):
     def __init__(self,server,username,password,resource):
 
         login_dia = Logon_dialog(None)
@@ -569,8 +569,8 @@ class jabberClient(Jabber.Client):
             jid = jabber.JID(jid_raw)
             i = 0
             for t in self.gui.getTabs():
-                print "comparing ", t.getJID() , jid.getBasic()
-                if t.getJID() == jid.getBasic():
+                print "comparing ", t.getJID() , jid.getStripped()
+                if t.getJID() == jid.getStripped():
                     self.gui.notebook.set_page(i)
                     return
                 i=i+1
