@@ -117,6 +117,141 @@ RS_EXT_OFFLINE  = 1
 RS_EXT_PENDING  = 0
 
 
+class BaseClient(xmlstream.Client):
+    """Forms the base for both Client and Component Classes"""
+    def __init__(self, host, port, namespace,
+                 debug=debug, log=log, connection=connection):
+    
+        self.msg_hdlr  = None
+        self.pres_hdlr = None
+        self.iq_hdlr   = None
+        self.disconnect_hdlr = None
+        
+        self._id = 0;
+        
+        self.lastErr = ''
+        self.lastErrCode = 0
+
+        xmlstream.Client.__init__(self, host, port, namespace,
+                                  debug=debug, log=log,
+                                  connection=connection )
+
+    def connect(self):
+        """Attempts to connect to the specified jabber server.
+           Raises an IOError on failiure"""
+        self.DEBUG("jabberpy connect called")
+        try:
+            xmlstream.Client.connect(self)
+        except xmlstream.error, e:
+            raise IOError(e)
+
+    def disconnect(self):
+        """Safely disconnects from the connected server"""
+        self.send(Presence(type='unavailable'));
+        xmlstream.Client.disconnect(self)
+
+    def send(self, what):
+        """Sends a jabber protocol element (Node) to the server"""
+        xmlstream.Client.write(self,str(what))
+
+    def dispatch(self, root_node ):
+        """Called internally when a 'protocol element' is recieved.
+           builds the relevant jabber.py object and dispatches it
+           to a relevant function or callback.
+           Also does some processing for roster and authentication
+           helper fuctions"""
+        
+        self.DEBUG("dispatch called")
+        if root_node.name == 'message':
+    
+            self.DEBUG("got message dispatch")
+            msg_obj = Message(node=root_node)
+            self.messageHandler(msg_obj) 
+            
+        elif root_node.name == 'presence':
+
+            self.DEBUG("got presence dispatch")
+            pres_obj = Presence(node=root_node)
+            self.presenceHandler(pres_obj)
+            
+        elif root_node.name == 'iq':
+
+            self.DEBUG("got an iq");
+            iq_obj = Iq(node=root_node)
+            self.iqHandler(iq_obj)
+
+        else:
+            self.DEBUG("whats a tag -> " + root_node.name)
+
+    ## Call back stuff ###
+
+    def setMessageHandler(self, func):
+        """Set the callback func for recieving messages"""
+        self.msg_hdlr = func
+
+    def setPresenceHandler(self, func):
+        """Set the callback func for recieving presence"""
+        self.pres_hdlr = func
+
+    def setIqHandler(self, func):
+        """Set the callback func for recieving iq's"""
+        self.iq_hdlr = func
+
+    def setDisconnectHandler(self, func):
+        """Set the callback for a disconnect"""
+        self.disconnect_hdlr = func
+
+    def messageHandler(self, msg_obj):   ## Overide If You Want ##
+        """Called when a message protocol element is recieved - can be
+           overidden"""
+        if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
+        
+    def presenceHandler(self, pres_obj): ## Overide If You Want ##
+        """Called when a pressence protocol element is recieved - can be
+           overidden"""
+        if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
+ 
+    def iqHandler(self, iq_obj):         ## Overide If You Want ##
+        """Called when an iq protocol element is recieved - can be
+           overidden"""
+        if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
+
+    def disconnected(self):
+        """Called when a network error occurs - can be overidden"""
+        if self.disconnect_hdlr != None: self.disconnect_hdlr(self)
+
+
+    ## functions for sending element with ID's ##
+
+    def waitForResponse(self, ID):
+        """Blocks untils a protocol element with ID id is recieved"""
+        ID = str(ID)
+        self._expected[ID] = None
+        while not self._expected[ID]:
+            self.DEBUG("waiting on %s" % str(ID))
+            self.process(1)
+        response = self._expected[ID]
+        del self._expected[ID]
+        return response 
+
+    def SendAndWaitForResponse(self, obj, ID=None):
+        """Sends a protocol element object and blocks until a response with
+           the same ID is recieved"""
+        if ID is None :
+            ID = obj.getID()
+            if ID is None:
+                ID = self.getAnID()
+                obj.setID(ID)
+        ID = str(ID)
+        self.send(obj)
+        return self.waitForResponse(ID)
+
+    def getAnID(self):
+        """Returns a unique ID"""
+        self._id = self._id + 1
+        return str(self._id)
+    
+
 class Client(xmlstream.Client):
     """Class for managing a connection to a jabber server.
     Inherits from the xmlstream Client class"""    
@@ -524,7 +659,7 @@ class Protocol:
     def getXPayload(self):
         """Returns the x tags payload as a Node instance"""
         x = self.getXNode()
-        if x:
+        if x and len(x):   ## x actually has some kids 
             return x.kids[0]
         return None
     
@@ -876,7 +1011,7 @@ class Roster:
         if self._data.has_key(jid):
             self._data[jid]['online'] = val
         else:                      ## fall back 
-            jid_basic = JID(jid).getBasic()
+            jid_basic = JID(jid).getStripped()
             if self._data.has_key(jid_basic):
                 self._data[jid_basic]['online'] = val
 
@@ -886,7 +1021,7 @@ class Roster:
         if self._data.has_key(jid):
             self._data[jid]['show'] = val 
         else:                      ## fall back 
-            jid_basic = JID(jid).getBasic()
+            jid_basic = JID(jid).getStripped()
             if self._data.has_key(jid_basic):
                 self._data[jid_basic]['show'] = val
 
@@ -897,7 +1032,7 @@ class Roster:
         if self._data.has_key(jid):
             self._data[jid]['status'] = val
         else:                      ## fall back 
-            jid_basic = JID(jid).getBasic()
+            jid_basic = JID(jid).getStripped()
             if self._data.has_key(jid_basic):
                 self._data[jid_basic]['status'] = val
 
@@ -969,61 +1104,35 @@ class JID:
 
 
 
-class Component(xmlstream.Client):
-    """THIS IS A PROTOTYPE !!! It may actually be better
-    to inherit from jabber.Client overiding different funcs"""
+class Component(BaseClient):
+    """THIS IS A PROTOTYPE !!"""
     def __init__(self, host, port=5222, connection=xmlstream.TCP,
                  debug=False, log=False):
-    
-        self.msg_hdlr  = None
-        self.pres_hdlr = None
-        self.iq_hdlr   = None
-        self.disconnect_hdlr = None
-        
-        self._roster = Roster()
-        self._agents = {}
-        self._reg_info = {}
-        self._reg_agent = ''
-
-        self._id = 0;
-        self._expected = {}
-        
-        self.lastErr = ''
-        self.lastErrCode = 0
 
         self._auth_OK = False
 
-        xmlstream.Client.__init__(self, host, port,
-                                  namespace='jabber:component:accept',
-                                  debug=debug,
-                                  log=log,
-                                  connection=connection)
-
-    def connect(self):
-        """Attempts to connect to the specified jabber server.
-           Raises an IOError on failiure"""
-        try:
-            xmlstream.Client.connect(self)
-        except xmlstream.error, e:
-            raise IOError(e)
+        BaseClient.__init__(self, host, port,
+                            namespace='jabber:component:accept',
+                            debug=debug,
+                            log=log,
+                            connection=connection)
 
     def auth(self,secret):
         """will disconnect on faliaure"""
         self.send( u"<handshake id='1'>%s</handshake>" 
                    % sha.new( self.getIncomingID() + secret ).hexdigest()
                   )
-
         while not self._auth_OK:
             self.DEBUG("waiting on %s" % str(ID))
             self.process(1)
 
         return True
 
-    def dispatch(self, root_node ):
+    def dispatch(self, root_node):
         """Catch the <handshake/> here"""
         if root_node.name == 'handshake': # check id too ?
             self._auth_OK = True
-
+        BaseClient.dispatch(self, root_node)
 
 class Server:
     pass
