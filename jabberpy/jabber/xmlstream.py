@@ -166,12 +166,21 @@ class Node:
         return s
 
     def getTag(self, name):
-        """Returns a child node with tag name name. Returns None
+        """Returns a child node with tag name. Returns None
         if not found."""
         for node in self.kids:
             if node.getName() == name:
                return node
         return None
+
+    def getTags(self, name):
+        """Like getTag but returns a list with matching child nodes"""
+        nodes=[]
+        for node in self.kids:
+            if node.getName() == name:
+               nodes.append(node)
+        return nodes
+        
 
     def getChildren(self):
         """Returns a nodes children"""

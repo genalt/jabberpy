@@ -13,6 +13,20 @@
 ##   GNU General Public License for more details.
 ##
 
+## TODO for 0.3 release
+## 
+##   - fix stackable handlers ( done, testing )
+##   - Rejig classes          ( done, testing )
+##   - improve error handling of 'helper' funcs ( done )
+##   - allow multiple x payloads ( nearly done, testing 
+##   - change license to lgpl
+##
+##   maybes
+## 
+##   - some sort of groupchat support ( maybe in pygtk client )
+##   
+
+
 """\
 
 __intro__
@@ -196,22 +210,36 @@ class Connection(xmlstream.Client):
     ## Call back stuff ###
 
     def setMessageHandler(self, func, type='default'):
-        """Set the callback func for recieving messages"""
-        self.msg_hdlr = func
+        """Sets a the callback func for recieving messages
+           Mulitple callback functions can be set which are
+           called in succession. A type attribute can also be
+           optionally passed so the callback is only called when a
+           message of this type is recieved.
+           """
 
-##      self.msg_hdlrs.append([  type : func ]) 
+        self.msg_hdlrs.append({  type : func }) 
 
     def setPresenceHandler(self, func, type='default'):
-        """Set the callback func for recieving presence"""
-        self.pres_hdlr = func
+        """Sets a the callback func for recieving presence
+           Mulitple callback functions can be set which are
+           called in succession. A type attribute can also be
+           optionally passed so the callback is only called when a
+           presence of this type is recieved.
+           """
+        ## self.pres_hdlr = func
 
-##      self.pres_hdlrs.append([  type : func ]) 
+        self.pres_hdlrs.append({  type : func }) 
 
     def setIqHandler(self, func, type='default', ns='default'):
-        """Set the callback func for recieving iq's"""
-        self.iq_hdlr = func
+        """Sets a the callback func for recieving iq
+           Mulitple callback functions can be set which are
+           called in succession. A type and namespace attribute
+           can also be set so set functions are only called for
+           iq elements with these properties.
+           """
+        ##self.iq_hdlr = func
 
-##      self.iq_hdlrs.append([ type : [ ns : func ] ]) 
+        self.iq_hdlrs.append({ type : { ns : func } }) 
         
     def setDisconnectHandler(self, func):
         """Set the callback for a disconnect"""
@@ -220,42 +248,57 @@ class Connection(xmlstream.Client):
     def messageHandler(self, msg_obj):   ## Overide If You Want ##
         """Called when a message protocol element is recieved - can be
            overidden"""
-        if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
+        ## if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
 
-##        output = ''
-##        for dicts in self.msg_hdlrs:
-##            if dicts.has_key(msg_obj.getType()):
-##                if dicts[msg_obj.getType()].func_code.co_argcount == 2:
-##                    dicts[msg_obj.getType()](self, msg_obj)
-##                else:
-##                    output = dicts[msg_obj.getType()](self, msg_obj, output)
-##            elif dicts.has_key('default'):
-##                if dicts['default'].func_code.co_argcount == 2:
-##                    dicts['default'](self, msg_obj)
-##                else:
-##                    output = dicts['default'](self, msg_obj, output)
-##            else: pass
+        output = ''
+        for dicts in self.msg_hdlrs:
+            if dicts.has_key(msg_obj.getType()):
+                if dicts[msg_obj.getType()].func_code.co_argcount == 2:
+                    dicts[msg_obj.getType()](self, msg_obj)
+                else:
+                    output = dicts[msg_obj.getType()](self, msg_obj, output)
+            elif dicts.has_key('default'):
+                if dicts['default'].func_code.co_argcount == 2:
+                    dicts['default'](self, msg_obj)
+                else:
+                    output = dicts['default'](self, msg_obj, output)
+            else: pass
 
     def presenceHandler(self, pres_obj): ## Overide If You Want ##
         """Called when a pressence protocol element is recieved - can be
            overidden"""
-        if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
+        ## if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
+
+        output = ''
+        for dicts in self.pres_hdlrs:
+            if dicts.has_key(pres_obj.getType()):
+                if dicts[pres_obj.getType()].func_code.co_argcount == 2:
+                    dicts[pres_obj.getType()](self, pres_obj)
+                else:
+                    output = dicts[pres_obj.getType()](self, pres_obj, output)
+            elif dicts.has_key('default'):
+                if dicts['default'].func_code.co_argcount == 2:
+                    dicts['default'](self, pres_obj)
+                else:
+                    output = dicts['default'](self, pres_obj, output)
+            else: pass
+
  
     def iqHandler(self, iq_obj):         ## Overide If You Want ##
         """Called when an iq protocol element is recieved - can be
            overidden"""
-        if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
+        ##if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
 
-##        for dicts in self.iq_hdlrs: ## do stackables to check ##
-##            if dicts.has_key(iq_obj.getType()):
-##                if dicts[iq_obj.getType()].has_key(iq_obj.getQuery()):
-##                    dicts[iq_obj.getType()][iq_obj.getQuery()](self, iq_obj)
-##                else:
-##                    dicts[iq_obj.getType()]['default'](self, iq_obj)
-##            elif dicts.has_key('default'): 
-##                dicts['default']['default'](self, iq_obj)
-##            else: pass
-##
+        for dicts in self.iq_hdlrs: ## do stackables to check ##
+            if dicts.has_key(iq_obj.getType()):
+                if dicts[iq_obj.getType()].has_key(iq_obj.getQuery()):
+                    dicts[iq_obj.getType()][iq_obj.getQuery()](self, iq_obj)
+                else:
+                    dicts[iq_obj.getType()]['default'](self, iq_obj)
+            elif dicts.has_key('default'): 
+                dicts['default']['default'](self, iq_obj)
+            else: pass
+
 
     def disconnected(self):
         """Called when a network error occurs - can be overidden"""
@@ -577,74 +620,6 @@ class Client(Connection):
         self.DEBUG("agents -> %s" % str(self._agents))
         return self._agents
 
-    ## Call back stuff ###
-
-##    def setMessageHandler(self, func):
-##        """Set the callback func for recieving messages"""
-##        self.msg_hdlr = func
-##
-##    def setPresenceHandler(self, func):
-##        """Set the callback func for recieving presence"""
-##        self.pres_hdlr = func
-##
-##    def setIqHandler(self, func):
-##        """Set the callback func for recieving iq's"""
-##        self.iq_hdlr = func
-##
-##    def setDisconnectHandler(self, func):
-##        """Set the callback for a disconnect"""
-##        self.disconnect_hdlr = func
-##
-##    def messageHandler(self, msg_obj):   ## Overide If You Want ##
-##        """Called when a message protocol element is recieved - can be
-##           overidden"""
-##        if self.msg_hdlr != None: self.msg_hdlr(self, msg_obj)
-##        
-##    def presenceHandler(self, pres_obj): ## Overide If You Want ##
-##        """Called when a pressence protocol element is recieved - can be
-##           overidden"""
-##        if self.pres_hdlr != None: self.pres_hdlr(self, pres_obj)
-## 
-##    def iqHandler(self, iq_obj):         ## Overide If You Want ##
-##        """Called when an iq protocol element is recieved - can be
-##           overidden"""
-##        if self.iq_hdlr != None: self.iq_hdlr(self, iq_obj)
-##
-##    def disconnected(self):
-##        """Called when a network error occurs - can be overidden"""
-##        if self.disconnect_hdlr != None: self.disconnect_hdlr(self)
-##
-
-    ## functions for sending element with ID's ##
-
-##    def waitForResponse(self, ID):
-##        """Blocks untils a protocol element with ID id is recieved"""
-##        ID = str(ID)
-##        self._expected[ID] = None
-##        while not self._expected[ID]:
-##            self.DEBUG("waiting on %s" % str(ID))
-##            self.process(1)
-##        response = self._expected[ID]
-##        del self._expected[ID]
-##        return response 
-##
-##    def SendAndWaitForResponse(self, obj, ID=None):
-##        """Sends a protocol element object and blocks until a response with
-##           the same ID is recieved"""
-##        if ID is None :
-##            ID = obj.getID()
-##            if ID is None:
-##                ID = self.getAnID()
-##                obj.setID(ID)
-##        ID = str(ID)
-##        self.send(obj)
-##        return self.waitForResponse(ID)
-##
-##    def getAnID(self):
-##        """Returns a unique ID"""
-##        self._id = self._id + 1
-##        return str(self._id)
-##
 
 class Protocol:
     """Base class for jabber 'protocol elements' - messages, presences and iqs.
@@ -695,14 +670,16 @@ class Protocol:
         "Sets the ID of the protocol element"
         self._node.putAttr('id', val)
 
-    def getX(self):
-        "returns the x namespace"
+    def getX(self,index=None):
+        "returns the x namespace, optionally passed an index if multiple tags"
+        ## TODO make it work for multiple x nodes
         try: return self._node.getTag('x').namespace
         except: return None
 
-    def setX(self,namespace):
+    def setX(self,namespace,index=None):
         """Sets the name space of the x tag. It also creates the node
         if it doesn't already exist"""
+        ## TODO make it work for multiple x nodes
         x = self._node.getTag('x')
         if x:
             x.namespace = namespace
@@ -712,12 +689,12 @@ class Protocol:
         return x
 
     def setXPayload(self, payload):
-        """Sets the Child of the x tag. Can be a Node instance or a
+        """Sets the Child of an x tag. Can be a Node instance or a
         XML document"""
-        x = self.getXNode()
-
-        if x is None:
-            x = self._node.insertTag('x')
+##        x = self.getXNode()
+##
+##        if x is None:
+        x = self._node.insertTag('x')
 
         if type(payload) == type('') or type(payload) == type(u''):
                 payload = xmlstream.NodeBuilder(payload).getDom()
@@ -732,18 +709,36 @@ class Protocol:
             return x.kids[0]
         return None
     
-    def getXNode(self):
-        """Returns the x Node instance"""
-        try: return self._node.getTag('x')
+    def getXNode(self, val=None):
+        """Returns the x Node instance. If there are multiple tags
+           the first Node is returned. For multiple X nodes use getXNodes
+           or pass an index integer value or namespace string to getXNode
+           and if a match is found it will be returned"""
+        if val:
+            nodes = []
+            if type(val) == type(""):
+                for xnode in self._node.getTags('x'):
+                    if xnode.getNamespace() == val: nodes.append(xnode)
+                return nodes
+            else:
+                try: return self._node.getTags('x')[val]
+                except: return None
+        else:
+            try: return self._node.getTag('x')
+            except: return None
+
+    def getXNodes(self, val=None):
+        """Returns a list of X nodes"""
+        try: return self._node.getTags('x')[val]
         except: return None
 
     def setXNode(self, val=''):
         """Sets the x nodes data - just text"""
-        x = self._node.getTag('x')
-        if x:
-            x.putData(val)
-        else:
-            self._node.insertTag('x').putData(val)
+##        x = self._node.getTag('x')
+##        if x:
+##            x.putData(val)
+##        else:
+        self._node.insertTag('x').putData(val)
 
     def fromTo(self):
         """Swaps the element from and to attributes.

@@ -142,8 +142,8 @@ class Chat_Tab(Tab): ### Make bigger and Better !!!
                     err_code = ''
                     if obj.getErrorCode(): err_code = obj.getErrorCode()
                     self._txt.insert(None,self.cols['red'], None,
-                                     "%s ( %s )" % obj.getError(),
-                                     err_code )
+                                     "%s ( %s )" % (obj.getError(),
+                                     err_code) )
                 else:
                     self._txt.insert(None,self.cols['red'], None,
                                      "<%s> " % obj.getFrom().getStripped())
@@ -760,6 +760,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
 
         self.checkItemCalled = 0
         self.init_menu()
+        self.init_status_select()
 
         self.close_but = gtk.GtkButton('X')
         self.close_but.connect("clicked", self.closeTabCB);
@@ -779,6 +780,23 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
 
         self.notebook.show()
         self.show()
+
+
+    def init_status_select(self):
+        ag = gtk.GtkAccelGroup()
+        self.itemsel = gtk.GtkItemFactory(gtk.GtkOptionMenu, "<select>", ag)
+        self.add_accel_group(ag)
+        
+        self.itemsel.create_items([
+            ('/Available',   None, self.statusCB, 1,     ''),
+            ('/Unavailable', None, self.statusCB, 0,     ''),
+            ('/Custom',      None, self.custstatusCB, 0, ''),
+            ])
+
+        self.status_select = self.itemsel.get_widget('<select>')
+        self.tbox.pack_start(self.status_select,
+                             fill=gtk.TRUE, expand=gtk.TRUE)
+        self.status_select.show()
 
     def init_menu(self):
         ag = gtk.GtkAccelGroup()
