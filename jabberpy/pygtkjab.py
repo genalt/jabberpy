@@ -211,11 +211,11 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
             clist.append( [ str(item['jid']), str(item['status']) ] )
 
 
-class Logon_dialog(gtk.GtkDialog):                  
+class Logon_dialog(gtk.GtkWindow):                  
                                                  
     def __init__(self, master):
 
-        gtk.GtkDialog.__init__(self)
+        gtk.GtkWindow.__init__(self)
 
         self.password = None
         self.username = None
@@ -224,32 +224,50 @@ class Logon_dialog(gtk.GtkDialog):
 
         self.connect("delete_event", self.delete_event)
         self.master = master
-        self.set_usize(200,150)
 
-        self.table = gtk.GtkTable(5,2,gtk.FALSE)
+        self.vbox = gtk.GtkVBox(gtk.FALSE,5)
+        self.add(self.vbox)
+
+        self.frame = gtk.GtkFrame("Have Account?")
+        self.table = gtk.GtkTable(6,6,gtk.FALSE)
         self.server_lbl = gtk.GtkLabel('Server')
+        self.server_lbl.set_alignment(1,0.5)
         self.username_lbl = gtk.GtkLabel('Username')
+        self.username_lbl.set_alignment(1,0.5)
         self.password_lbl = gtk.GtkLabel('Password')
+        self.password_lbl.set_alignment(1,0.5)
 
         self.server_entry   = gtk.GtkEntry()
         self.username_entry = gtk.GtkEntry()
         self.password_entry = gtk.GtkEntry()
+        self.password_entry.set_visibility(gtk.FALSE)
 
-        self.table.attach( self.server_lbl,     0,1,0,1)
-        self.table.attach( self.username_lbl,   0,1,1,2)
-        self.table.attach( self.password_lbl,   0,1,2,3) 
-        self.table.attach( self.server_entry,   1,2,0,1)
-        self.table.attach( self.username_entry, 1,2,1,2)
-        self.table.attach( self.password_entry, 1,2,2,3) 
+        self.table.attach( self.server_lbl,     0,2,0,1,xpadding=3,ypadding=2)
+        self.table.attach( self.username_lbl,   0,2,1,2,xpadding=3,ypadding=2)
+        self.table.attach( self.password_lbl,   0,2,2,3,xpadding=3,ypadding=2) 
+        self.table.attach( self.server_entry,   2,6,0,1,xpadding=3,ypadding=2)
+        self.table.attach( self.username_entry, 2,6,1,2,xpadding=3,ypadding=2)
+        self.table.attach( self.password_entry, 2,6,2,3,xpadding=3,ypadding=2)
+
+        self.save_check = gtk.GtkCheckButton('Save Details')
+        self.table.attach( self.save_check, 3,6,4,5,xpadding=3,ypadding=2)
 
         self.login_button = gtk.GtkButton('Login')
         self.login_button.connect('clicked', self.login)
-        self.action_area.pack_start(self.login_button,expand=gtk.FALSE)
+        self.table.attach( self.login_button, 3,6,5,6,xpadding=5) 
+        self.frame.add(self.table)
         
-        self.vbox.pack_start(self.table)
-             
+        self.vbox.pack_start(self.frame)
+        
+        self.frame_acc = gtk.GtkFrame("New User?")
+        self.table_acc = gtk.GtkTable(1,1,gtk.FALSE)
+        self.button_acc = gtk.GtkButton("Get an Account")
+
+        self.table_acc.attach( self.button_acc, 0,1,0,1,xpadding=5,ypadding=5) 
+        self.frame_acc.add(self.table_acc)
+        self.vbox.pack_end(self.frame_acc)
+    
         self.vbox.show_all()
-        self.action_area.show_all()
         self.show()
         self.set_modal(gtk.TRUE)
 
@@ -257,6 +275,14 @@ class Logon_dialog(gtk.GtkDialog):
         self.password = self.password_entry.get_text()
         self.username = self.username_entry.get_text()
         self.server   = self.server_entry.get_text()
+        # self.save_password = self.save_check.getActive 
+        # 
+        #
+        
+        # if self.username and self.username: 
+        self.done = gtk.TRUE
+
+    def new_account(self,*args):
         
         self.done = gtk.TRUE
 
@@ -318,7 +344,6 @@ class Msg_dialog(gtk.GtkDialog):
         gtk.GtkDialog.__init__(self)
 
         self.done     = None
-
         self.connect("delete_event", self.delete_event)
         self.master = master
         self.set_usize(200,150)
@@ -467,7 +492,11 @@ class JabberClient(Jabber.Connection):
                 else:
                     status = 'pending'
                 jid = Jabber.JID(jid).getBasic()
+                found = 0
+                for item in self.roster:
+                    if item['jid'] == jid: found = 1
                 ##if jid and not roster.has_key(jid):
+                if not found:    
                     self.roster.append( { 'jid':jid, 'status': status } )
 
         self.gui = mainWindow("jabber app",roster=self.roster)

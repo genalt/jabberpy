@@ -518,8 +518,8 @@ class JID: ## !! TODO: integrate into rest of lib ? !! ##
             except:
                 return None
         else:
-            self.node = name
-            self.domain = server
+            self.node = node
+            self.domain = domain
             self.resource = resource
 
     def __str__(self):
