@@ -345,8 +345,8 @@ class Client(Connection):
         self._reg_info = {}
         self._reg_agent = ''
 
-        xmlstream.Client.__init__(self, host, port,
-                                  'jabber:client', debug, log)
+        #xmlstream.Client.__init__(self, host, port,
+        #                          'jabber:client', debug, log)
 
     def connect(self):
         """Attempts to connect to the specified jabber server.

@@ -478,8 +478,9 @@ class Client(Stream):
     def connect(self):
         """Attempt to connect to specified host"""
 
-        self.DEBUG("client connect called to %s %s" % (self._host,
-                                                       self._port) )
+        self.DEBUG("client connect called to %s %s type %i" % (self._host,
+                                                               self._port,
+                                                               self._connection) )
 
         ## TODO: check below that stdin/stdout are actually open
         if self._connection == STDIO: return
