@@ -1308,7 +1308,11 @@ class Roster:
 class JID:
     """A Simple class for managing jabber users id's """
     def __init__(self, jid='', node='', domain='', resource=''):
-        if jid:
+        if type(jid)==type(self):
+            self.node = jid.node
+            self.domain = jid.domain
+            self.resource = jid.resource
+        elif jid:
             if jid.find('@') == -1:
                 self.node = ''
             else:
