@@ -803,7 +803,7 @@ class Protocol(xmlstream.Node):
     def getX(self,index=0):
         """Returns the x namespace, optionally passed an index if there are
            multiple tags."""
-        try: return self.getXNodes('x')[index].namespace
+        try: return self.getXNodes()[index].namespace
         except: return None
 
 
