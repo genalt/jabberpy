@@ -509,7 +509,25 @@ class Iq(Protocol):
             q = self._node.insertTag('query')
             q.setNamespace(namespace)
         return q
-        
+
+    def setQueryPayload(self, payload):
+        q = self.getQueryNode()
+
+        if q is None:
+            q = self._node.insertTag('query')
+
+        if type(payload) == type('') or type(payload) == type(u''):
+                payload = XMLStream.XMLStreamNodeBuilder(payload).getDom()
+
+        q.kids = [] # should be a method for this realy 
+        q.insertNode(payload)
+                
+    def setQueryPayload(self):
+        q = self.getQueryNode()
+        if q:
+            return q.kids[0]
+        return None
+    
     def getQueryNode(self):
         try: return self._node.getTag('query')
         except: return None
@@ -664,6 +682,8 @@ class JID:
             return jid_str
         except:
             return ''
+
+    __repr__ = __str__
 
     def getNode(self): return self.node
     def getDomain(self): return self.domain

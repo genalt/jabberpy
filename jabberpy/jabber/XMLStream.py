@@ -79,7 +79,6 @@ class XMLStreamNode:
     def insertData(self, data):
         self.data = data
 
-
     def getData(self):
         return self.data
 
@@ -89,9 +88,19 @@ class XMLStreamNode:
     def setNamespace(self, namespace):
         self.namespace = namespace
 
-
     def insertTag(self, name):
         newnode = XMLStreamNode(tag=name, parent=self)
+        self.kids.append(newnode)
+        return newnode
+
+    def insertNode(self, node):
+        self.kids.append(node)
+        return node
+
+    def insertXML(self, xml_str):
+        """Kind of expeimetal method allowing you to insert
+           a XML document as a child of a node"""
+        newnode = XMLStreamNodeBuilder(xml_str).getDom()
         self.kids.append(newnode)
         return newnode
 
@@ -120,6 +129,48 @@ class XMLStreamNode:
 
     def getChildren(self):
         return self.kids
+
+class XMLStreamNodeBuilder:
+    """builds a 'minidom' from data parsed to it. Primarily for insertXML method
+       of XMLStreamNode"""
+    def __init__(self,data):
+        self._parser = xml.parsers.expat.ParserCreate(namespace_separator = ' ')
+        self._parser.StartElementHandler  = self.unknown_starttag
+        self._parser.EndElementHandler    = self.unknown_endtag
+        self._parser.CharacterDataHandler = self.handle_data
+
+        self.__depth = 0
+        self.__done  = 0 #needed ? 
+        self._parser.Parse(data,1)
+
+    def unknown_starttag(self, tag, attrs):
+        self.__depth = self.__depth + 1
+        if self.__depth == 1:
+            self._mini_dom = XMLStreamNode(tag=tag, attrs=attrs)
+            self._ptr = self._mini_dom
+        elif self.__depth > 1:
+            self._ptr.kids.append(XMLStreamNode(tag=tag, parent=self._ptr, attrs=attrs ))
+            self._ptr = self._ptr.kids[-1]
+        else:                           ## fix this ....
+            pass 
+
+    def unknown_endtag(self, tag ):
+        self.__depth = self.__depth - 1
+        if self.__depth == 0:
+            self.dispatch(self._mini_dom)
+        elif self.__depth > 0:
+            self._ptr = self._ptr.parent
+        else:
+            pass
+
+    def handle_data(self, data):
+        self._ptr.data = self._ptr.data + data 
+
+    def dispatch(self,dom):
+        self.__done = 1
+
+    def getDom(self):
+        return self._mini_dom
 
 
 class Client:
@@ -165,9 +216,8 @@ class Client:
             return 0
         self.DEBUG("connected")
         str = u"<?xml version='1.0' ?>                \
-               <stream:stream to='%s' xmlns='%s'                      \
-                xmlns:stream='http://etherx.jabber.org/streams'>" %   \
-               ( self._host, self._namespace )
+               <stream:stream to='%s' xmlns='%s'      \
+                xmlns:stream='http://etherx.jabber.org/streams'>" %  ( self._host, self._namespace )
         self.write (str)
         self.read()
 
