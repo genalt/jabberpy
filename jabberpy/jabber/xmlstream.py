@@ -30,7 +30,7 @@ case.
 
 # $Id$
 
-import xmllib, time, sys, re
+import xmllib, time, sys, re, site
 from socket import socket, AF_INET, SOCK_STREAM
 from select import select
 from string import split,find,replace
@@ -44,10 +44,10 @@ True  = 1
 TCP    = 1
 STDIO  = 0
 
-FB_ENCODING = 'ascii'  ## fallback encoding to avoid random
-                       ## random UnicodeError: ASCII decoding error:
-                       ##                      ordinal not in range(128)
-                       ## type errors - being looked into. 
+ENCODING = site.encoding  ## fallback encoding to avoid random
+                          ## random UnicodeError: ASCII decoding error:
+                          ##                      ordinal not in range(128)
+                          ## type errors - being looked into. 
 
 BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
                        ## transactions
@@ -357,26 +357,26 @@ class Stream:
         data_in = u''
         if self._connection == TCP:
             data_in = data_in + \
-              unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(FB_ENCODING,
+              unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(ENCODING,
                                                             'replace')
             while data_in:
                 data = data + data_in
                 if len(data_in) != BLOCK_SIZE:
                     break
                 data_in = unicode(self._sock.recv(BLOCK_SIZE),'utf-8').encode(
-                    FB_ENCODING, 'replace')
+                    ENCODING, 'replace')
 
                 
         elif self._connection == STDIO:
             ## Hope this dont buffer !
             data_in = data_in + unicode(sys.stdin.read(1024),'utf-8').encode(
-                    FB_ENCODING, 'replace')
+                    ENCODING, 'replace')
             while data_in:
                 data = data + data_in
                 if len(data_in) != 1024:
                     break
                 data_in = unicode(sys.stdin.read(1024),'utf-8').encode(
-                    FB_ENCODING, 'replace')
+                    ENCODING, 'replace')
         else:
             pass # should never get here
             
