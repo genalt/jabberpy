@@ -429,7 +429,6 @@ class Client(Connection):
     def disconnect(self):
         """Safely disconnects from the connected server"""
         self.send(Presence(type='unavailable'))
-        while self.process(): pass
         xmlstream.Client.disconnect(self)
 
     def sendPresence(self,type=None,priority=None,show=None,status=None):
