@@ -37,7 +37,7 @@ from select import select
 from string import split,find,replace,join
 import xml.parsers.expat
 
-VERSION = 0.3
+VERSION = '0.4-1'
 
 False = 0
 True  = 1
@@ -50,7 +50,7 @@ ENCODING = site.encoding
 
 BLOCK_SIZE  = 1024     ## Number of bytes to get at at time via socket
                        ## transactions
-
+ENABLE_RECONNECT = 0	# Enable this if you want to reconnect with the same client again
 
 def XMLescape(txt):
     "Escape XML entities"
@@ -61,8 +61,8 @@ def XMLescape(txt):
 
 def XMLunescape(txt):
     "Unescape XML entities"
-    txt = replace(txt, "&lt;", "<")
     txt = replace(txt, "&gt;", ">")
+    txt = replace(txt, "&lt;", "<")
     txt = replace(txt, "&amp;", "&")
     return txt
 
@@ -390,7 +390,7 @@ class Stream:
         data_in = action(buff_size)
         while data_in:
             data = data + data_in
-            if len(data_in) != buff_size:
+            if len(data_in) != buff_size and data[-buff_size:].rstrip()[-1]=='>':
                 break
             data_in = action(buff_size)
         return data
@@ -421,14 +421,12 @@ class Stream:
 
         changed 021231 by jaclu, added unicode encoding
         """
-        if type(raw_data) == type(u''):
-            data_out = raw_data.encode('utf-8','replace')
-        else:
+        if type(raw_data) == type(''):
             # since not suplied as unicode, we must guess at
-            # what the data is, iso-8859-1 seems reasonable.
-            # To avoid this auto assumption,
+            # what the data is. To avoid this auto assumption,
             # send your data as a unicode string!
-            data_out = unicode(raw_data,'iso-8859-1').encode(ENCODING,'replace')
+            raw_data = unicode(raw_data,ENCODING)
+        data_out = raw_data.encode('utf-8','replace')
         try:
             if self._connection == TCP:
                 self._sock.send (data_out)
@@ -473,6 +471,19 @@ class Stream:
         self.write ( "</stream:stream>" )
         self._sock.close()
         self._sock = None
+
+	if ENABLE_RECONNECT:
+            self._parser = xml.parsers.expat.ParserCreate(namespace_separator=' ')
+            self._parser.StartElementHandler  = self._unknown_starttag
+            self._parser.EndElementHandler    = self._unknown_endtag
+            self._parser.CharacterDataHandler = self._handle_data
+            self.__depth = 0
+            self._sslObj = None
+            self._sslIssuer = None
+            self._sslServer = None
+            self._incomingID = None
+	else:
+            self.DEBUG("RECONNECT DISABLED")
         
     def disconnected(self): ## To be overidden ##
         """Called when a Network Error or disconnection occurs.
