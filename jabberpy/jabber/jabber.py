@@ -270,12 +270,12 @@ class Connection(xmlstream.Client):
             ns=stanza.getQuery()
             if not ns: ns=''
         except: ns=''
+        self.DEBUG("dispatch called for: name->%s ns->%s"%(name,ns),DBG_DISPATCH)
+
         typns=typ+ns
         if not self.handlers[name].has_key(ns): ns=''
         if not self.handlers[name].has_key(typ): typ=''
         if not self.handlers[name].has_key(typns): typns=''
-
-        self.DEBUG("dispatch called for: name->%s ns->%s"%(name,ns),DBG_DISPATCH)
 
         chain=[]
         for key in ['default',typ,ns,typns]: # we will use all handlers: from very common to very particular
