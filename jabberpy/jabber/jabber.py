@@ -867,8 +867,10 @@ class Iq(Protocol):
         if err:
             err.putData(val)
         else:
-            err = self._node.insertTag('error').putData(val)
-        err.setAttr('code',str(code))
+            err = self._node.insertTag('error')
+            err.putData(val)
+        err.putAttr('code',str(code))
+
 
     def getQuery(self):
         "returns the query namespace"

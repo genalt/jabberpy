@@ -248,7 +248,7 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
                 self.paint_tree() ## a presence 
 
     def paint_tree(self):
-        print "DEBUG: rebuilding tree"
+        self._ctree.freeze()
         self._ctree.clear()
         self._online_node = self._ctree.insert_node(
             None, None, ( 'online', ), 2,
@@ -299,7 +299,9 @@ class Roster_Tab(Tab): ### Make bigger and Better !!!
 
             self._nodes.append(node)
             self._ctree.node_set_row_data(node, str(jid))
-
+            
+        self._ctree.thaw()
+        
 class Logon_dialog(gtk.GtkWindow):                  
                                                  
     def __init__(self, master):
@@ -659,9 +661,24 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
         self.box = gtk.GtkVBox()
         self.add(self.box)
         self.box.show()
-        
-        self.init_menu()        
+        self.tbox = gtk.GtkHBox()
 
+        self.init_menu()
+#        self.stat_label = gtk.GtkLabel('Status:') 
+#        self.stat_label.show()
+#        self.tbox.pack_start(self.stat_label, fill=gtk.FALSE, expand=gtk.FALSE)
+#        self.stat_combo = gtk.GtkCombo()
+#        self.stat_combo.set_popdown_strings(['on', 'off'])
+#        self.stat_combo.show()
+#        self.tbox.pack_start(self.stat_combo, fill=gtk.FALSE, expand=gtk.FALSE)
+        self.close_but = gtk.GtkButton('X')
+        self.close_but.connect("clicked", self.closeTabCB);
+        self.close_but.show()
+        self.tbox.pack_end(self.close_but, fill=gtk.FALSE, expand=gtk.FALSE)
+        
+        self.tbox.show()
+        self.box.pack_start(self.tbox, fill=gtk.FALSE, expand=gtk.FALSE)
+        
         self.notebook = gtk.GtkNotebook()
         self.notebook.set_tab_pos (gtk.POS_BOTTOM);
         self.notebook.set_scrollable( gtk.TRUE ) 
@@ -688,6 +705,9 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
             ('/Roster/Add',        None, self.addCB, 1, ''),
             ('/Roster/Remove',     None, self.removeCB, 0, ''),
             ('/Roster/Transports', None, self.transCB, 0, ''),
+            ('/Roster/Status/Available', None, None , 0, '<CheckItem>'),
+            ('/Roster/Status/Unavailable', None, None , 0, '<CheckItem>'),
+            ('/Roster/Status/Custom', None, None , 0, '<CheckItem>'),
             ('/Tab',               None, None, 0, '<Branch>'),
             ('/Tab/Close',         None, self.closeTabCB, 1, ''),
             ('/Tab/sep1',        None, None, 0, '<Separator>'),
@@ -697,7 +717,7 @@ class mainWindow(gtk.GtkWindow):         # Usual Base
             ])
 
         self.menubar = self.itemf.get_widget('<main>')
-        self.box.pack_start(self.menubar, fill=gtk.FALSE, expand=gtk.FALSE)
+        self.tbox.pack_start(self.menubar, fill=gtk.TRUE, expand=gtk.TRUE)
         self.menubar.show()
 
     def urlTabCB(self, *args):
@@ -879,7 +899,8 @@ class jabberClient(jabber.Client):
             self.gui.getTab(-1)._entry.connect('activate',
                                                      self.messageSend,
                                                      self.gui.getTab(-1) )
-
+            self.gui.notebook.set_page(i)
+            
     def messageSend(self, *args):
         tab = args[-1]
         msg = tab.getData()
