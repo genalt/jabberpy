@@ -385,7 +385,6 @@ class Stream(NodeBuilder):
     def disconnect(self):
         """Close the stream and socket"""
         self.write ( u"</stream:stream>" )
-        while self.process(): pass
         self._sock.close()
         self._sock = None
 
